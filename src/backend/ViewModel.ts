@@ -4,7 +4,7 @@
 // - No backend logic
 // - Use this for frontend !!! And use Controller.ts to control it!
 
-export type CourseStatus = 'locked' | 'available' | 'selected' | 'bypassed';
+export type CourseStatus = 'locked' | 'available' | 'selected' | 'moveUpPreview';
 
 export interface CourseViewModel {
     id: string;
@@ -12,9 +12,17 @@ export interface CourseViewModel {
     grade: string;
     
     // UI State
-    status: CourseStatus; 
-    
+    status: CourseStatus;
+    isSelected: boolean;
+    isInvalidSelection: boolean;
+    isMoveUpSource: boolean;
+    moveUpSourceId?: string;
+    moveUpTargetId?: string;
+    moveUpLineageIds?: string[];
+    moveUpAvailable?: boolean;
+
     // Display Strings (Backend handles the formatting)
     lockReason?: string;       // e.g., "Requires: Bio 9 Honors"
     moveUpNote?: string;       // e.g., "Requires 95%+ on Bio 9 Final"
+    crowdRating: number;
 }

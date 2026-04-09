@@ -12,12 +12,12 @@ export class Updater {
     private static readonly baseURL = "https://edgeone.gh-proxy.org/https://raw.githubusercontent.com/WillUHD/CourseResources/refs/heads/main/";
 
     public async initialize(): Promise<CourseModel | null> {
-        const fullUrl = `${Updater.baseURL}${Updater.fileName}.${Updater.fileExt}`;
+        const remoteUrl = `${Updater.baseURL}${Updater.fileName}.${Updater.fileExt}`;
+        let lastError: unknown = null;
 
         try {
-            // not storing because client is connected to the internet anyway. 
-            // proper excuse is conflicts with local build pipeline. will impact startup by a bit.
-            const response = await fetch(fullUrl, { cache: 'no-store' });
+            // Always fetch the remote catalog directly; no local fallback or caching layer.
+            const response = await fetch(remoteUrl, { cache: 'no-store' });
 
             if (!response.ok) {
                 throw new Error(`Network response was ${response.status}`);
@@ -35,7 +35,11 @@ export class Updater {
                 return parsedRemote;
             }
         } catch (error) {
-            console.error("Updater: Failed to fetch data:", error);
+            lastError = error;
+        }
+
+        if (lastError) {
+            console.error("Updater: Failed to fetch data:", lastError);
         }
 
         return null;
@@ -44,7 +48,8 @@ export class Updater {
     private parseRawData(raw: string): CourseModel | null {
         try {
             const commentRegex = /^\s*\/\/.*$/gm;
-            const stripped = raw.replace(commentRegex, "");
+            const trailingCommaRegex = /,\s*([}\]])/g;
+            const stripped = raw.replace(commentRegex, "").replace(trailingCommaRegex, "$1");
 
             return JSON.parse(stripped) as CourseModel;
         } catch (e) {

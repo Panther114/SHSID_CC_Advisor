@@ -53,7 +53,8 @@ export class CatalogLinter {
         courseMap.forEach((course, id) => {
             const allRuleIds = [
                 ...(course.rules?.pre?.flat() || []),
-                ...(course.rules?.current?.flat() || [])
+                ...(course.rules?.current?.flat() || []),
+                ...(course.rules?.next?.flat() || [])
             ];
 
             allRuleIds.forEach(ruleId => {
@@ -61,6 +62,10 @@ export class CatalogLinter {
                     errors.push(`Reference Error in [${id}]: Requires missing course ID [${ruleId}]`);
                 }
             });
+
+            if (course.moveUpTargetId && !courseMap.has(course.moveUpTargetId)) {
+                errors.push(`Reference Error in [${id}]: moveUpTargetId points to missing course ID [${course.moveUpTargetId}]`);
+            }
         });
 
         // 3. Static impossibility checks for same-slot requirements
@@ -68,10 +73,22 @@ export class CatalogLinter {
             const sourceGroup = conflictGroupMap.get(id);
             if (!sourceGroup) return;
 
-            (["pre", "current"] as const).forEach(kind => {
+            if (course.moveUpTargetId) {
+                const moveUpGroup = conflictGroupMap.get(course.moveUpTargetId);
+                if (moveUpGroup && moveUpGroup !== sourceGroup) {
+                    errors.push(`Constraint Conflict in [${id}]: moveUpTargetId must stay in the same department-year slot.`);
+                }
+            }
+
+            (["pre", "current", "next"] as const).forEach(kind => {
                 const clauses = course.rules?.[kind] || [];
 
                 clauses.forEach(clause => {
+                    if (kind === "next" && clause.includes(id)) {
+                        errors.push(`Constraint Conflict in [${id}]: next rule cannot reference the same course.`);
+                        return;
+                    }
+
                     const knownOptions = clause.filter(optionId => courseMap.has(optionId));
                     if (knownOptions.length === 0) return;
 
