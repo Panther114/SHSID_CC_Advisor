@@ -7,7 +7,7 @@ import type { CourseStatus, CourseViewModel } from "./ViewModel";
 export class CourseSelectionController {
     private solver: CatalogSolver;
     private selectedIds: Set<string> = new Set();
-    private moveUpOverrides: Set<string> = new Set();
+    private activeMoveUps: Set<string> = new Set();
     private onUpdate: (viewModels: Record<string, CourseViewModel>) => void = () => { };
 
     constructor(catalog: CourseModel) {
@@ -15,27 +15,51 @@ export class CourseSelectionController {
 
         this.solver.subscribe((internalState: Record<string, CourseAvailabilityState>) => {
             const uiState: Record<string, CourseViewModel> = {};
+            const moveUpPreviewSources = this.buildPreviewSourceMap();
+
+            const lineageMemo = new Map<string, string[]>();
+            const buildLineage = (courseId: string): string[] => {
+                const cached = lineageMemo.get(courseId);
+                if (cached) return cached;
+
+                const sourceId = moveUpPreviewSources.get(courseId);
+                if (!sourceId) {
+                    lineageMemo.set(courseId, []);
+                    return [];
+                }
+
+                const parentLineage = buildLineage(sourceId);
+                const lineage = [...parentLineage, sourceId];
+                lineageMemo.set(courseId, lineage);
+                return lineage;
+            };
 
             this.solver.courseMap.forEach((course, id) => {
                 const solverState = internalState[id];
                 if (!solverState) return;
 
                 const isSelected = this.selectedIds.has(id);
-                const isBypassed = this.moveUpOverrides.has(id);
+                const isMoveUpSource = this.activeMoveUps.has(id);
+                const moveUpSourceId = moveUpPreviewSources.get(id);
+                const isMoveUpPreview = Boolean(moveUpSourceId);
+                const isInvalidSelection = isSelected && !isMoveUpSource && !solverState.isAvailable;
+                const moveUpTargetId = course.moveUpTargetId;
+                const moveUpLineageIds = moveUpTargetId && (isSelected || isMoveUpPreview || isMoveUpSource)
+                    ? buildLineage(id)
+                    : undefined;
+                const moveUpAvailable = Boolean(moveUpTargetId && this.solver.canBypassCourse(id));
 
-                let status: CourseStatus = 'locked';
-                if (isSelected && isBypassed) status = 'bypassed';
-                else if (isSelected) status = 'selected';
-                else if (solverState.isAvailable) status = 'available';
+                let status: CourseStatus = "locked";
+                if (isMoveUpPreview) status = "moveUpPreview";
+                else if (isSelected && !isInvalidSelection) status = "selected";
+                else if (solverState.isAvailable) status = "available";
 
                 let lockReason = undefined;
-                if (status === 'locked') {
+                if (status === "locked") {
                     if (solverState.conflictReason) {
-                        // Triggers when a course is impossible due to backwards resolution
-                        lockReason = solverState.conflictReason; 
+                        lockReason = solverState.conflictReason;
                     } else {
-                        // Display forward missing items
-                        let reasons = [];
+                        const reasons = [];
                         if (solverState.missingPre.length > 0) {
                             reasons.push(`Requires: ${solverState.missingPre.map(b => b.map(reqId => this.solver.courseMap.get(reqId)?.name || reqId).join(" or ")).join(" AND ")}`);
                         }
@@ -51,8 +75,16 @@ export class CourseSelectionController {
                     name: course.name || course.id,
                     grade: course.grade || "N/A",
                     status,
+                    isSelected,
+                    isInvalidSelection,
+                    isMoveUpSource,
+                    moveUpSourceId,
+                    moveUpTargetId,
+                    moveUpLineageIds,
+                    moveUpAvailable,
                     lockReason,
-                    moveUpNote: course.moveUp
+                    moveUpNote: course.moveUp,
+                    crowdRating: Math.round(course.crowdRating || 0),
                 };
             });
 
@@ -62,32 +94,83 @@ export class CourseSelectionController {
 
     public connectView(callback: (viewModels: Record<string, CourseViewModel>) => void) {
         this.onUpdate = callback;
-        this.solver.forceNotify(); 
+        this.solver.forceNotify();
     }
 
     public handleTap(courseId: string) {
         if (this.selectedIds.has(courseId)) {
-            // Deselecting no longer invalidates or pulls down the logic chain
             this.selectedIds.delete(courseId);
-            this.moveUpOverrides.delete(courseId);
-        } else {
-            // We only allow selection if the SAT solver determines it doesn't break the global state
-            if (this.solver.isCourseAvailable(courseId)) {
-                this.clearConflictingSelection(courseId);
-                this.selectedIds.add(courseId);
-            }
+            this.activeMoveUps.delete(courseId);
+        } else if (this.solver.isCourseAvailable(courseId)) {
+            this.clearConflictingSelection(courseId);
+            this.selectedIds.add(courseId);
         }
-        
-        // Push the raw updated set to the solver, let the solver figure out the UI constraints
-        this.solver.setSelected(this.selectedIds, this.moveUpOverrides);
+
+        this.solver.setSelected(this.selectedIds, this.activeMoveUps);
     }
 
     public handleMoveUpTap(courseId: string) {
-        if (this.solver.courseMap.get(courseId)?.moveUp && this.solver.canBypassCourse(courseId)) {
+        const course = this.solver.courseMap.get(courseId);
+        if (!course?.moveUpTargetId) return;
+
+        if (!this.activeMoveUps.has(courseId)) {
+            const lineageDepth = this.buildLineage(courseId, this.buildPreviewSourceMap()).length;
+            if (lineageDepth >= 3) return;
+        }
+
+        if (!this.selectedIds.has(courseId)) {
             this.clearConflictingSelection(courseId);
-            this.moveUpOverrides.add(courseId);
             this.selectedIds.add(courseId);
-            this.solver.setSelected(this.selectedIds, this.moveUpOverrides);
+        }
+
+        if (this.activeMoveUps.has(courseId)) {
+            this.activeMoveUps.delete(courseId);
+            this.pruneBrokenSelections();
+        } else {
+            this.activeMoveUps.add(courseId);
+        }
+
+        this.solver.setSelected(this.selectedIds, this.activeMoveUps);
+    }
+
+    private buildPreviewSourceMap() {
+        const moveUpPreviewSources = new Map<string, string>();
+
+        for (const sourceId of this.activeMoveUps) {
+            const targetId = this.solver.getMoveUpTargetId(sourceId);
+            if (targetId) moveUpPreviewSources.set(targetId, sourceId);
+        }
+
+        return moveUpPreviewSources;
+    }
+
+    private buildLineage(courseId: string, moveUpPreviewSources: Map<string, string>): string[] {
+        const sourceId = moveUpPreviewSources.get(courseId);
+        if (!sourceId) return [];
+
+        return [...this.buildLineage(sourceId, moveUpPreviewSources), sourceId];
+    }
+
+    private pruneBrokenSelections() {
+        let changed = false;
+
+        do {
+            changed = false;
+
+            for (const selectedId of [...this.selectedIds]) {
+                if (this.activeMoveUps.has(selectedId)) continue;
+                if (this.solver.isCourseAvailable(selectedId)) continue;
+
+                this.selectedIds.delete(selectedId);
+                this.activeMoveUps.delete(selectedId);
+                changed = true;
+            }
+        } while (changed);
+
+        for (const sourceId of [...this.activeMoveUps]) {
+            if (!this.selectedIds.has(sourceId) || !this.solver.getMoveUpTargetId(sourceId)) {
+                this.activeMoveUps.delete(sourceId);
+            }
         }
     }
 
@@ -100,7 +183,7 @@ export class CourseSelectionController {
             if (this.solver.getConflictGroupId(selectedId) !== targetGroupId) continue;
 
             this.selectedIds.delete(selectedId);
-            this.moveUpOverrides.delete(selectedId);
+            this.activeMoveUps.delete(selectedId);
         }
     }
 }

@@ -7,6 +7,7 @@
 export interface CourseRules {
     pre?: string[][];
     current?: string[][];
+    next?: string[][]; // allowed continuation(s) in the next grade
     [key: string]: any;
 }
 
@@ -17,10 +18,10 @@ export interface CourseNode {
     description: string;
     crowdRating: number;
     crowdReview: string;
-    crowdPopularity: number;
     level?: string;
     rules?: CourseRules;
     moveUp?: string; // e.g. "Midterm score 95%+ or SAT 1500+ to jump tracks"
+    moveUpTargetId?: string;
     [key: string]: any;
 }
 
@@ -32,7 +33,6 @@ export interface CourseModel {
     catalogName: string;
     version: string;
     lastUpdated: string;
-    credit: string;
     grades: string[];
     tracks: string[];
     departments: {
