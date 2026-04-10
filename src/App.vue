@@ -17,6 +17,17 @@
       </div>
 
       <div class="flex items-center gap-3 flex-grow justify-end">
+        
+        <!-- 🌟 NEW: Export Plan Button (Only shows if courses are selected) 🌟 -->
+        <button
+          v-if="hasSelectedCourses"
+          @click="showExportModal = true"
+          class="px-5 py-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95 text-sm mr-2 flex items-center gap-2"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+          Export Plan
+        </button>
+
         <div class="relative w-full max-w-xs group">
           <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -118,11 +129,6 @@
                       {{ viewState[getCollapsedSummary(dept, grade)!.id]?.name || getCollapsedSummary(dept, grade)!.raw.name }}
                     </h3>
                   </div>
-                  <div class="pt-0.5 shrink-0">
-                    <svg v-if="viewState[getCollapsedSummary(dept, grade)!.id]?.status === 'locked'" class="h-4 w-4 opacity-75" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                    <svg v-else-if="viewState[getCollapsedSummary(dept, grade)!.id]?.status === 'moveUpTarget'" class="h-4 w-4 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 17L17 7m0 0H9m8 0v8"></path></svg>
-                    <svg v-else class="h-4 w-4 opacity-80" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                  </div>
                 </div>
               </button>
               <div v-else class="w-full min-h-[74px] rounded-2xl border border-dashed border-black/15 dark:border-white/15 text-[#8E8E93] dark:text-[#98989D] flex items-center justify-center px-3 text-sm font-semibold bg-white/35 dark:bg-white/[0.03]">
@@ -148,8 +154,6 @@
                   <div class="pr-2">
                     <h3 class="font-bold text-[13px] leading-snug">{{ viewState[course.id]?.name || course.raw.name }}</h3>
                   </div>
-
-                  <!-- Rating Bar (Monochrome) -->
                   <div class="w-full h-1 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden" v-if="course.raw.crowdRating">
                     <div class="h-full bg-black/25 dark:bg-white/30 rounded-full transition-all duration-300" :style="{ width: `${(course.raw.crowdRating / 10) * 100}%` }"></div>
                   </div>
@@ -169,7 +173,6 @@
                   >
                     <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8h.01M11 12h1v4h1m-1 5a9 9 0 110-18 9 9 0 010 18z" /></svg>
                   </button>
-
                   <button
                     v-if="moveUpState.active && moveUpState.sourceId === course.id"
                     type="button"
@@ -198,7 +201,70 @@
       </div>
     </div>
 
-    <!-- Info Side Sheet -->
+    <!-- 🌟 NEW: PDF Export Modal 🌟 -->
+    <Transition name="fade">
+      <div v-if="showExportModal" class="fixed inset-0 z-[100] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8">
+        <div class="bg-[#F2F2F7] dark:bg-[#1C1C1E] rounded-3xl w-full max-w-6xl max-h-full flex flex-col overflow-hidden shadow-2xl border border-white/20">
+          
+          <!-- Modal Header -->
+          <div class="px-6 py-5 border-b border-black/5 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#2C2C2E]">
+            <h2 class="text-xl font-bold text-black dark:text-white">Review & Export Plan</h2>
+            <div class="flex gap-3">
+              <button @click="showExportModal = false" class="px-4 py-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl font-medium transition-colors">Cancel</button>
+              <button @click="downloadPDF" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md transition-transform active:scale-95 flex items-center gap-2">
+                <svg v-if="isExporting" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                <span v-if="isExporting">Generating PDF...</span>
+                <span v-else>Download PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Printable Area (Always Light Theme for Clean Printing) -->
+          <div class="overflow-y-auto p-4 md:p-8 bg-gray-100 dark:bg-black/50">
+            <div ref="exportRef" class="bg-white p-8 md:p-12 rounded-2xl shadow-sm text-black min-w-[900px] mx-auto border border-gray-200">
+              
+              <div class="text-center mb-10">
+                <h1 class="text-4xl font-black text-gray-900 tracking-tight">4-Year Academic Pathway</h1>
+                <p class="text-gray-500 mt-2 font-medium">Generated by SHSID CC Advisor</p>
+              </div>
+
+              <!-- Export Grid Headers -->
+              <div class="grid grid-cols-[160px_1fr_1fr_1fr_1fr] gap-6 mb-6">
+                <div class="font-bold text-gray-400 uppercase tracking-widest text-xs pt-2">Department</div>
+                <div v-for="grade in grades" :key="grade" class="font-black text-center text-xl text-gray-800 border-b-2 border-gray-200 pb-3">Grade {{ grade }}</div>
+              </div>
+
+              <!-- Export Grid Rows (Flow Diagram Style) -->
+              <div v-for="(gradeMap, dept) in selectedPlan" :key="dept" class="grid grid-cols-[160px_1fr_1fr_1fr_1fr] gap-6 py-6 border-b border-gray-100 relative group">
+                
+                <!-- Background Connection Line to simulate flow diagram -->
+                <div class="absolute left-[160px] right-10 top-1/2 h-1 bg-gray-100 -translate-y-1/2 z-0 rounded-full"></div>
+
+                <!-- Dept Title -->
+                <div class="font-bold text-gray-800 capitalize flex items-center bg-white z-10 pr-4 text-lg">{{ dept }}</div>
+
+                <!-- Grade Slots -->
+                <div v-for="grade in grades" :key="grade" class="relative z-10 flex flex-col gap-3 items-center justify-center w-full px-2">
+                  
+                  <div v-if="gradeMap[grade]" v-for="course in gradeMap[grade]" :key="course.id" class="w-full bg-blue-50 border-2 border-blue-500 text-blue-900 p-4 rounded-xl shadow-sm relative">
+                    <div class="text-[10px] font-bold opacity-70 uppercase tracking-wider mb-1">{{ course.raw.level || 'Standard' }}</div>
+                    <div class="font-bold text-sm leading-snug">{{ course.raw.name }}</div>
+                    <div class="text-[10px] font-mono opacity-60 mt-1.5">{{ course.id }}</div>
+                  </div>
+                  
+                  <!-- Empty Dot indicating pathway passage -->
+                  <div v-else class="w-6 h-6 rounded-full bg-gray-100 border-4 border-white shadow-sm flex items-center justify-center"></div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Side-over Detail Panel -->
     <Transition name="slide-sheet">
       <div v-if="viewingCourseId" class="fixed inset-y-0 right-0 w-full max-w-[420px] bg-white/85 dark:bg-[#1C1C1E]/80 backdrop-blur-xl shadow-2xl shadow-black/20 border-l border-white/70 dark:border-white/10 z-[60] p-8 overflow-y-auto custom-scrollbar flex flex-col">
         <div class="flex justify-between items-start mb-6">
@@ -226,7 +292,6 @@
           </button>
         </div>
 
-        <!-- Rating Section -->
         <div class="mb-6 rounded-[1.5rem] border border-black/5 dark:border-white/5 p-5 bg-white/50 dark:bg-white/5">
           <div class="flex justify-between items-end mb-4">
             <div>
@@ -241,36 +306,26 @@
           </div>
         </div>
 
-        <!-- Move-up Banner (If this is the target of a move-up) -->
         <div v-if="activeVm?.isMoveUpTarget" class="mb-8">
           <div class="w-full py-4 px-6 rounded-2xl border flex items-center justify-between transition-all duration-200 bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400">
             <div class="text-left">
               <div class="text-[10px] font-bold uppercase tracking-widest opacity-80">Accelerated path</div>
               <div class="font-bold text-sm">Moved up from {{ getCourseName(activeVm.moveUpSourceId) }}</div>
             </div>
-            <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7m0 0H9m8 0v8" />
-            </svg>
+            <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7m0 0H9m8 0v8" /></svg>
           </div>
         </div>
 
-        <!-- Move-up Action Center (If this course has been moved up from) -->
         <div v-else-if="activeVm?.isMoveUpSource" class="mb-8">
           <div class="w-full py-4 px-6 rounded-2xl border flex items-center justify-between transition-all duration-200 bg-orange-50 border-orange-200 dark:bg-orange-500/10 dark:border-orange-500/30 text-orange-700 dark:text-orange-400">
             <div class="text-left">
               <div class="text-[10px] font-bold uppercase tracking-widest opacity-80">Accelerated path</div>
               <div class="font-bold text-sm">Moved up to {{ getCourseName(activeVm.moveUpTargetId) }}</div>
             </div>
-            <button
-              @click="removeMoveUp(viewingCourseId!)"
-              class="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm"
-            >
-              Cancel
-            </button>
+            <button @click="removeMoveUp(viewingCourseId!)" class="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm">Cancel</button>
           </div>
         </div>
 
-        <!-- Descriptions -->
         <div class="space-y-6">
           <div>
             <h4 class="text-[10px] font-bold text-[#8E8E93] uppercase tracking-widest mb-2 ml-1">Catalog description</h4>
@@ -284,23 +339,14 @@
       </div>
     </Transition>
 
+    <!-- Footer -->
     <footer class="mt-8 pt-8 pb-4 border-t border-slate-200/60 dark:border-slate-800/60 relative z-10 shrink-0 text-center flex flex-col items-center max-w-4xl mx-auto space-y-5">
       <div class="px-5 py-2.5 bg-[#FF3B30]/10 dark:bg-[#FF453A]/20 text-[#FF3B30] dark:text-[#FF453A] backdrop-blur-md rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#FF3B30]/20 shadow-sm">⚠️ Unofficial tool: derived from course data, for reference only</div>
       <p class="text-sm font-medium text-[#8E8E93] dark:text-[#98989D]">Frontend made by <a href="https://github.com/Ziqian-Huang0607" target="_blank" class="text-black dark:text-white font-bold hover:text-blue-500 transition-colors">Ziqian Huang</a>, backend built by <a href="https://github.com/WillUHD" target="_blank" class="text-black dark:text-white font-bold hover:text-blue-500 transition-colors">Will Chen</a></p>
     </footer>
 
-    <Transition name="fade"><div v-if="viewingCourseId" @click="viewingCourseId = null" class="fixed inset-0 bg-black/20 dark:bg-black/50 backdrop-blur-sm z-[55] cursor-pointer"></div></Transition>
-    
-    <!-- Unified Tooltip Renderer -->
     <Transition name="tooltip-pop">
-      <div 
-        v-if="activeTooltip.visible" 
-        class="fixed z-[100] pointer-events-none text-xs" 
-        :class="tooltipThemeClass" 
-        :style="tooltipStyle"
-      >
-        {{ activeTooltip.text }}
-      </div>
+      <div v-if="activeTooltip.visible" class="fixed z-[100] pointer-events-none text-xs" :class="tooltipThemeClass" :style="tooltipStyle">{{ activeTooltip.text }}</div>
     </Transition>
   </div>
 </template>
@@ -309,24 +355,18 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { inject } from '@vercel/analytics';
 
+// 🌟 NEW: PDF Export Libraries 🌟
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+
 import { CourseSelectionController } from './backend/Controller';
 import { Updater } from './backend/Updater';
 import type { CourseModel, CourseNode } from './backend/CourseModel';
 import type { CourseViewModel } from './backend/ViewModel';
 
-interface CourseMeta {
-  id: string; dept: string; grade: string; raw: CourseNode; searchText: string;
-}
-
-interface ArrowPath {
-  key: string; d: string; variant: 'solid' | 'dashed';
-}
-
-interface TooltipState {
-  visible: boolean;
-  text: string;
-  theme?: 'default' | 'move-up';
-}
+interface CourseMeta { id: string; dept: string; grade: string; raw: CourseNode; searchText: string; }
+interface ArrowPath { key: string; d: string; variant: 'solid' | 'dashed'; }
+interface TooltipState { visible: boolean; text: string; theme?: 'default' | 'move-up'; }
 
 const uiConfig = {
   cardBase: 'w-full min-h-[78px] text-left px-3 py-3 pr-11 rounded-2xl relative overflow-hidden border transition-all duration-200 flex flex-col justify-between gap-2',
@@ -345,13 +385,14 @@ const collapsedDepts = ref<Set<string>>(new Set());
 const tooltip = ref<TooltipState>({ visible: false, text: '', theme: 'default' });
 const deptArrowPaths = ref<Record<string, ArrowPath[]>>({});
 
+// 🌟 NEW: Export Modal State 🌟
+const showExportModal = ref(false);
+const isExporting = ref(false);
+const exportRef = ref<HTMLElement | null>(null);
+
 const mouseX = ref(0);
 const mouseY = ref(0);
-const moveUpState = ref<{
-  active: boolean;
-  sourceId: string | null;
-  validTargets: string[];
-}>({ active: false, sourceId: null, validTargets: [] });
+const moveUpState = ref<{ active: boolean; sourceId: string | null; validTargets: string[]; }>({ active: false, sourceId: null, validTargets: [] });
 
 const matrixRef = ref<HTMLElement | null>(null);
 const deptRowRefs = new Map<string, HTMLElement>();
@@ -363,15 +404,13 @@ let resizeObserver: ResizeObserver | null = null;
 
 const handleEscape = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
-    if (moveUpState.value.active) cancelMoveUpMode();
+    if (showExportModal.value) showExportModal.value = false;
+    else if (moveUpState.value.active) cancelMoveUpMode();
     else if (viewingCourseId.value) viewingCourseId.value = null;
   }
 };
 
-const updateMousePosition = (e: MouseEvent) => {
-  mouseX.value = e.clientX;
-  mouseY.value = e.clientY;
-};
+const updateMousePosition = (e: MouseEvent) => { mouseX.value = e.clientX; mouseY.value = e.clientY; };
 
 const grades = computed<string[]>(() => catalogData.value?.grades || []);
 
@@ -390,11 +429,7 @@ const allCourses = computed<CourseMeta[]>(() => {
   return list;
 });
 
-const courseMetaById = computed(() => {
-  const map = new Map<string, CourseMeta>();
-  allCourses.value.forEach(course => map.set(course.id, course));
-  return map;
-});
+const courseMetaById = computed(() => { const map = new Map<string, CourseMeta>(); allCourses.value.forEach(course => map.set(course.id, course)); return map; });
 
 const allCoursesByBucket = computed(() => {
   const buckets = new Map<string, CourseMeta[]>();
@@ -424,153 +459,144 @@ const activeDepartments = computed(() => Array.from(new Set([...visibleCoursesBy
 const activeVm = computed(() => viewingCourseId.value ? viewState.value[viewingCourseId.value] : null);
 const activeRaw = computed(() => viewingCourseId.value ? courseMetaById.value.get(viewingCourseId.value) || null : null);
 
+// 🌟 NEW: Gather only selected courses for the PDF Export Flow Diagram 🌟
+const selectedPlan = computed(() => {
+  const plan: Record<string, Record<string, CourseMeta[]>> = {};
+  for (const course of allCourses.value) {
+    const vm = viewState.value[course.id];
+    // If it is selected or bypassed, add it to the final plan
+    if (vm && (vm.status === 'selected' || vm.status === 'bypassed')) {
+      if (!plan[course.dept]) plan[course.dept] = {};
+      if (!plan[course.dept][course.grade]) plan[course.dept][course.grade] = [];
+      plan[course.dept][course.grade].push(course);
+    }
+  }
+  return plan;
+});
+const hasSelectedCourses = computed(() => Object.keys(selectedPlan.value).length > 0);
+// 🌟 NEW: Download PDF Function (Forces Fit to One Page) 🌟
+const downloadPDF = async () => {
+  if (!exportRef.value) return;
+  isExporting.value = true;
+  
+  try {
+    // 1. Take a screenshot of the hidden white modal
+    const canvas = await html2canvas(exportRef.value, { 
+      scale: 2, 
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      scrollY: 0,
+      windowHeight: exportRef.value.scrollHeight 
+    });
+    
+    const imgData = canvas.toDataURL('image/png');
+    
+    // 2. Setup A4 Landscape PDF
+    const pdf = new jsPDF('l', 'mm', 'a4');
+    
+    const pdfPageWidth = pdf.internal.pageSize.getWidth();
+    const pdfPageHeight = pdf.internal.pageSize.getHeight();
+    
+    // 3. Calculate aspect ratios
+    const imgWidth = canvas.width;
+    const imgHeight = canvas.height;
+    const ratio = imgWidth / imgHeight;
+    
+    let finalWidth = pdfPageWidth;
+    let finalHeight = finalWidth / ratio;
+    
+    // 4. THE FIX: If the calculated height is STILL taller than the page,
+    // we must shrink the width further so the height fits perfectly!
+    if (finalHeight > pdfPageHeight) {
+      finalHeight = pdfPageHeight;
+      finalWidth = finalHeight * ratio;
+    }
+    
+    // 5. Center the image horizontally if it was shrunk to fit height
+    const xOffset = (pdfPageWidth - finalWidth) / 2;
+    
+    // 6. Print to exactly one page
+    pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, finalHeight);
+    pdf.save('SHSID_Course_Plan.pdf');
+    
+    // Auto-close modal on success
+    showExportModal.value = false;
+  } catch (error) {
+    console.error('Failed to generate PDF:', error);
+    alert("Failed to export PDF. Please try again.");
+  } finally {
+    isExporting.value = false;
+  }
+};
+
+
 const getCourses = (dept: string, grade: string) => visibleCoursesByBucket.value.get(`${dept}::${grade}`) || [];
 const getAllBucketCourses = (dept: string, grade: string) => allCoursesByBucket.value.get(`${dept}::${grade}`) || [];
 
-const toggleDarkMode = () => {
-  isDarkMode.value = !isDarkMode.value;
-  document.documentElement.classList.toggle('dark', isDarkMode.value);
-};
-
-const toggleDept = (dept: string) => {
-  const next = new Set(collapsedDepts.value);
-  if (next.has(dept)) next.delete(dept); else next.add(dept);
-  collapsedDepts.value = next;
-};
-
+const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value; document.documentElement.classList.toggle('dark', isDarkMode.value); };
+const toggleDept = (dept: string) => { const next = new Set(collapsedDepts.value); if (next.has(dept)) next.delete(dept); else next.add(dept); collapsedDepts.value = next; };
 const openCourseInfo = (courseId: string) => viewingCourseId.value = courseId;
 
-// Move Up UI Logic
-const startMoveUp = (courseId: string) => {
-  if (!controller.value) return;
-  const targets = controller.value.getValidMoveUpTargets(courseId);
-  if (targets.length > 0) {
-    moveUpState.value = { active: true, sourceId: courseId, validTargets: targets };
-  }
-};
-
-const cancelMoveUpMode = () => {
-  moveUpState.value = { active: false, sourceId: null, validTargets: [] };
-};
-
-const executeMoveUp = (targetId: string) => {
-  if (moveUpState.value.sourceId) {
-    controller.value?.setExplicitMoveUp(moveUpState.value.sourceId, targetId);
-    cancelMoveUpMode();
-  }
-};
-
-const removeMoveUp = (sourceId: string) => {
-  controller.value?.removeExplicitMoveUp(sourceId);
-};
+const startMoveUp = (courseId: string) => { if (!controller.value) return; const targets = controller.value.getValidMoveUpTargets(courseId); if (targets.length > 0) { moveUpState.value = { active: true, sourceId: courseId, validTargets: targets }; } };
+const cancelMoveUpMode = () => { moveUpState.value = { active: false, sourceId: null, validTargets: [] }; };
+const executeMoveUp = (targetId: string) => { if (moveUpState.value.sourceId) { controller.value?.setExplicitMoveUp(moveUpState.value.sourceId, targetId); cancelMoveUpMode(); } };
+const removeMoveUp = (sourceId: string) => { controller.value?.removeExplicitMoveUp(sourceId); };
 
 const handleCourseClick = (courseId: string) => {
   if (moveUpState.value.active) {
-    if (moveUpState.value.validTargets.includes(courseId)) {
-      executeMoveUp(courseId);
-    } else if (courseId === moveUpState.value.sourceId) {
-      cancelMoveUpMode();
-    }
+    if (moveUpState.value.validTargets.includes(courseId)) executeMoveUp(courseId);
+    else if (courseId === moveUpState.value.sourceId) cancelMoveUpMode();
     return;
   }
-
   const vm = viewState.value[courseId];
-  if (vm?.isMoveUpTarget) {
-    openCourseInfo(courseId);
-    return;
-  }
-
+  if (vm?.isMoveUpTarget) { openCourseInfo(courseId); return; }
   controller.value?.handleTap(courseId);
 };
 
-const getCourseName = (courseId?: string): string => {
-  if (!courseId) return 'Unknown';
-  return viewState.value[courseId]?.name || courseMetaById.value.get(courseId)?.raw.name || courseId;
-};
+const getCourseName = (courseId?: string): string => { if (!courseId) return 'Unknown'; return viewState.value[courseId]?.name || courseMetaById.value.get(courseId)?.raw.name || courseId; };
 
-// --- Unified Tooltip Logic (Refactored) ---
 const activeTooltip = computed<TooltipState>(() => {
-  // Prioritize the move-up cursor tooltip
   if (moveUpState.value.active && moveUpState.value.sourceId) {
     const sourceName = courseMetaById.value.get(moveUpState.value.sourceId)?.raw.name || '';
-    return {
-      visible: true,
-      text: `Select course to move-up to from ${sourceName}`,
-      theme: 'move-up',
-    };
+    return { visible: true, text: `Select course to move-up to from ${sourceName}`, theme: 'move-up' };
   }
-  // Fall back to the standard hover tooltip
-  return {
-    ...tooltip.value,
-    theme: 'default',
-  };
+  return { ...tooltip.value, theme: 'default' };
 });
 
-const showTooltip = (text: string) => {
-  if (!text) return; // Don't show tooltips for empty text
-  tooltip.value = { visible: true, text };
-};
-
+const showTooltip = (text: string) => { if (!text) return; tooltip.value = { visible: true, text }; };
 const hideTooltip = () => { tooltip.value.visible = false; };
-
 const tooltipStyle = computed(() => {
-  const gap = 15;
-  const tooltipElWidth = activeTooltip.value.theme === 'move-up' ? 350 : 280;
-  const tooltipElHeight = 96; // Generous height for positioning calculation
-  const margin = 16;
-  
-  const x = mouseX.value;
-  const y = mouseY.value;
-
+  const gap = 15; const tooltipElWidth = activeTooltip.value.theme === 'move-up' ? 350 : 280; const tooltipElHeight = 96; const margin = 16;
+  const x = mouseX.value; const y = mouseY.value;
   const placeLeft = x + gap + tooltipElWidth > window.innerWidth - margin;
   const placeAbove = y + gap + tooltipElHeight > window.innerHeight - margin;
-
   const left = placeLeft ? x - tooltipElWidth - gap : x + gap;
   const top = placeAbove ? y - tooltipElHeight - gap : y + gap;
-
   return { left: `${left}px`, top: `${top}px` };
 });
 
 const tooltipThemeClass = computed(() => {
-  if (activeTooltip.value.theme === 'move-up') {
-    return 'bg-orange-500/90 backdrop-blur-md text-white font-bold rounded-full shadow-xl border border-white/20 dark:border-black/20 px-3.5 py-2';
-  }
-  
-  // Default theme
+  if (activeTooltip.value.theme === 'move-up') return 'bg-orange-500/90 backdrop-blur-md text-white font-bold rounded-full shadow-xl border border-white/20 dark:border-black/20 px-3.5 py-2';
   const baseClasses = 'font-medium shadow-xl max-w-[280px] rounded-xl px-3 py-2';
-  return isDarkMode.value 
-    ? `${baseClasses} bg-[#2C2C2E]/90 text-white border border-white/10 shadow-2xl` 
-    : `${baseClasses} bg-white text-slate-900 border border-black/10 shadow-xl`;
+  return isDarkMode.value ? `${baseClasses} bg-[#2C2C2E]/90 text-white border border-white/10 shadow-2xl` : `${baseClasses} bg-white text-slate-900 border border-black/10 shadow-xl`;
 });
 
-
-const formatRating = (val: number | undefined) => {
-  if (val === undefined) return '0.00';
-  return val.toFixed(2);
-};
+const formatRating = (val: number | undefined) => { if (val === undefined) return '0.00'; return val.toFixed(2); };
 
 const getCardStyles = (courseId: string): string => {
   const isViewing = viewingCourseId.value === courseId;
   const baseRing = isViewing ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-[#1C1C1E] ' : '';
-
   if (moveUpState.value.active) {
-    if (courseId === moveUpState.value.sourceId) {
-      return baseRing + 'bg-red-50/80 border-2 border-red-500 text-red-700 dark:bg-red-500/20 dark:text-red-300 transition-all cursor-pointer';
-    }
-    if (moveUpState.value.validTargets.includes(courseId)) {
-      return baseRing + 'bg-orange-50 border-2 border-dashed border-orange-500 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 cursor-pointer animate-[pulse_2s_ease-in-out_infinite] hover:scale-[1.02] hover:bg-orange-100 dark:hover:bg-orange-500/30 transition-all';
-    }
+    if (courseId === moveUpState.value.sourceId) return baseRing + 'bg-red-50/80 border-2 border-red-500 text-red-700 dark:bg-red-500/20 dark:text-red-300 transition-all cursor-pointer';
+    if (moveUpState.value.validTargets.includes(courseId)) return baseRing + 'bg-orange-50 border-2 border-dashed border-orange-500 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 cursor-pointer animate-[pulse_2s_ease-in-out_infinite] hover:scale-[1.02] hover:bg-orange-100 dark:hover:bg-orange-500/30 transition-all';
     return baseRing + 'bg-transparent border-black/5 dark:border-white/5 opacity-30 grayscale cursor-not-allowed pointer-events-none';
   }
-  
   const vm = viewState.value[courseId];
   if (!vm || vm.status === 'locked') return baseRing + 'bg-transparent border border-black/10 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-60';
-  
   if (vm.isMoveUpSource) return baseRing + 'bg-transparent border-2 border-solid border-orange-400 text-gray-600 dark:text-gray-300 font-medium opacity-85 active:scale-[0.985]';
   if (vm.isMoveUpTarget) return baseRing + 'bg-orange-500 border-orange-500 text-white shadow-md font-semibold dark:bg-orange-600 active:scale-[0.985]';
   if (vm.status === 'selected') return baseRing + 'bg-blue-500 border-blue-500 text-white shadow-sm hover:bg-blue-600 active:scale-[0.985]';
   if (vm.status === 'available') return baseRing + 'bg-white/75 dark:bg-[#2C2C2E]/75 border-black/5 dark:border-white/10 text-black dark:text-white hover:bg-white dark:hover:bg-[#3A3A3C] shadow-sm active:scale-[0.985]';
-  
   return baseRing + 'bg-transparent border border-black/10 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-60';
 };
 
@@ -583,130 +609,36 @@ const getSummaryStyles = (courseId: string): string => {
   return 'bg-white/80 dark:bg-[#2C2C2E]/75 border-black/5 text-black dark:text-white';
 };
 
-const getGradeEntryPoint = (dept: string, grade: string): string | null => {
-  const bucket = getAllBucketCourses(dept, grade);
-  const activeCourses = bucket.filter(c => {
-    const st = viewState.value[c.id]?.status;
-    return st === 'selected' || st === 'moveUpTarget';
-  });
-  if (!activeCourses.length) return null;
-
-  const entry = activeCourses.find(c => {
-    const sourceId = viewState.value[c.id]?.moveUpSourceId;
-    if (!sourceId) return true;
-    return courseMetaById.value.get(sourceId)?.grade !== grade;
-  });
-  return entry ? entry.id : activeCourses[0]!.id;
-};
-
-const getGradeExitPoint = (dept: string, grade: string): string | null => {
-  const bucket = getAllBucketCourses(dept, grade);
-  const activeCourses = bucket.filter(c => {
-    const st = viewState.value[c.id]?.status;
-    return st === 'selected' || st === 'moveUpTarget';
-  });
-  if (!activeCourses.length) return null;
-
-  const exit = activeCourses.find(c => {
-    if (!viewState.value[c.id]?.isMoveUpSource) return true;
-    const targetId = viewState.value[c.id]?.moveUpTargetId;
-    if (!targetId) return true;
-    return courseMetaById.value.get(targetId)?.grade !== grade;
-  });
-  return exit ? exit.id : activeCourses[activeCourses.length - 1]!.id;
-};
-
-const getCollapsedSummary = (dept: string, grade: string) => {
-  const id = getGradeExitPoint(dept, grade);
-  return id ? courseMetaById.value.get(id) || null : null;
-};
+const getGradeEntryPoint = (dept: string, grade: string): string | null => { const bucket = getAllBucketCourses(dept, grade); const activeCourses = bucket.filter(c => { const st = viewState.value[c.id]?.status; return st === 'selected' || st === 'moveUpTarget'; }); if (!activeCourses.length) return null; const entry = activeCourses.find(c => { const sourceId = viewState.value[c.id]?.moveUpSourceId; if (!sourceId) return true; return courseMetaById.value.get(sourceId)?.grade !== grade; }); return entry ? entry.id : activeCourses[0]!.id; };
+const getGradeExitPoint = (dept: string, grade: string): string | null => { const bucket = getAllBucketCourses(dept, grade); const activeCourses = bucket.filter(c => { const st = viewState.value[c.id]?.status; return st === 'selected' || st === 'moveUpTarget'; }); if (!activeCourses.length) return null; const exit = activeCourses.find(c => { if (!viewState.value[c.id]?.isMoveUpSource) return true; const targetId = viewState.value[c.id]?.moveUpTargetId; if (!targetId) return true; return courseMetaById.value.get(targetId)?.grade !== grade; }); return exit ? exit.id : activeCourses[activeCourses.length - 1]!.id; };
+const getCollapsedSummary = (dept: string, grade: string) => { const id = getGradeExitPoint(dept, grade); return id ? courseMetaById.value.get(id) || null : null; };
 
 const setDeptRowRef = (dept: string, el: Element | null) => { if (el instanceof HTMLElement) deptRowRefs.set(dept, el); else deptRowRefs.delete(dept); scheduleArrowRefresh(); };
 const setCourseCardRef = (courseId: string, el: Element | null) => { if (el instanceof HTMLElement) courseCardRefs.set(courseId, el); else courseCardRefs.delete(courseId); scheduleArrowRefresh(); };
 const setCollapsedSummaryRef = (dept: string, grade: string, el: Element | null) => { const key = `${dept}::${grade}`; if (el instanceof HTMLElement) collapsedSummaryRefs.set(key, el); else collapsedSummaryRefs.delete(key); scheduleArrowRefresh(); };
 
-const getArrowAnchorEl = (id: string | null, dept: string, grade: string): HTMLElement | null => {
-  if (!id) return null;
-  return collapsedDepts.value.has(dept) ? collapsedSummaryRefs.get(`${dept}::${grade}`) || null : courseCardRefs.get(id) || null;
-};
-
-const makeLanePath = (rowEl: HTMLElement, startEl: HTMLElement, endEl: HTMLElement) => {
-  const rowRect = rowEl.getBoundingClientRect();
-  const s = startEl.getBoundingClientRect();
-  const e = endEl.getBoundingClientRect();
-
-  const sx = s.right - rowRect.left;
-  const sy = (s.top + s.bottom) / 2 - rowRect.top;
-  const ex = e.left - rowRect.left;
-  const ey = (e.top + e.bottom) / 2 - rowRect.top;
-
-  const mx = sx + (ex - sx) / 2;
-  return `M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${ey}, ${ex} ${ey}`;
-};
-
-const makeMoveUpPath = (rowEl: HTMLElement, startEl: HTMLElement, endEl: HTMLElement) => {
-  const rowRect = rowEl.getBoundingClientRect();
-  const s = startEl.getBoundingClientRect();
-  const e = endEl.getBoundingClientRect();
-  
-  const isSameCol = Math.abs(s.left - e.left) < 50;
-
-  if (isSameCol) {
-    const startIsAbove = s.top < e.top;
-    const sx = (s.left + s.right) / 2 - rowRect.left;
-    const sy = (startIsAbove ? s.bottom : s.top) - rowRect.top;
-    const ex = (e.left + e.right) / 2 - rowRect.left;
-    const ey = (startIsAbove ? e.top : e.bottom) - rowRect.top;
-    
-    const ctrlOffsetY = (ey - sy) * 0.55; 
-    return `M ${sx},${sy} C ${sx},${sy + ctrlOffsetY} ${ex},${ey - ctrlOffsetY} ${ex},${ey}`;
-  } else {
-    const sx = s.right - rowRect.left;
-    const sy = (s.top + s.bottom) / 2 - rowRect.top;
-    const ex = e.left - rowRect.left;
-    const ey = (e.top + e.bottom) / 2 - rowRect.top;
-    const mx = sx + (ex - sx) / 2;
-    return `M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${ey}, ${ex} ${ey}`;
-  }
-};
+const getArrowAnchorEl = (id: string | null, dept: string, grade: string): HTMLElement | null => { if (!id) return null; return collapsedDepts.value.has(dept) ? collapsedSummaryRefs.get(`${dept}::${grade}`) || null : courseCardRefs.get(id) || null; };
+const makeLanePath = (rowEl: HTMLElement, startEl: HTMLElement, endEl: HTMLElement) => { const rowRect = rowEl.getBoundingClientRect(); const s = startEl.getBoundingClientRect(); const e = endEl.getBoundingClientRect(); const sx = s.right - rowRect.left; const sy = (s.top + s.bottom) / 2 - rowRect.top; const ex = e.left - rowRect.left; const ey = (e.top + e.bottom) / 2 - rowRect.top; const mx = sx + (ex - sx) / 2; return `M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${ey}, ${ex} ${ey}`; };
+const makeMoveUpPath = (rowEl: HTMLElement, startEl: HTMLElement, endEl: HTMLElement) => { const rowRect = rowEl.getBoundingClientRect(); const s = startEl.getBoundingClientRect(); const e = endEl.getBoundingClientRect(); const isSameCol = Math.abs(s.left - e.left) < 50; if (isSameCol) { const startIsAbove = s.top < e.top; const sx = (s.left + s.right) / 2 - rowRect.left; const sy = (startIsAbove ? s.bottom : s.top) - rowRect.top; const ex = (e.left + e.right) / 2 - rowRect.left; const ey = (startIsAbove ? e.top : e.bottom) - rowRect.top; const ctrlOffsetY = (ey - sy) * 0.55; return `M ${sx},${sy} C ${sx},${sy + ctrlOffsetY} ${ex},${ey - ctrlOffsetY} ${ex},${ey}`; } else { const sx = s.right - rowRect.left; const sy = (s.top + s.bottom) / 2 - rowRect.top; const ex = e.left - rowRect.left; const ey = (e.top + e.bottom) / 2 - rowRect.top; const mx = sx + (ex - sx) / 2; return `M ${sx} ${sy} C ${mx} ${sy}, ${mx} ${ey}, ${ex} ${ey}`; } };
 
 const recomputeArrowPaths = () => {
-  const nextPaths: Record<string, ArrowPath[]> = {};
-  const currentGrades = grades.value;
+  const nextPaths: Record<string, ArrowPath[]> = {}; const currentGrades = grades.value;
   activeDepartments.value.forEach(dept => {
-    const rowEl = deptRowRefs.get(dept); if (!rowEl) return;
-    const paths: ArrowPath[] = [];
-    
+    const rowEl = deptRowRefs.get(dept); if (!rowEl) return; const paths: ArrowPath[] = [];
     if (!collapsedDepts.value.has(dept)) {
       const explicitSources = Object.values(viewState.value).filter(v => v.isMoveUpSource && courseMetaById.value.get(v.id)?.dept === dept);
-      explicitSources.forEach(vm => {
-        if (!vm.moveUpTargetId) return;
-        const sEl = courseCardRefs.get(vm.id);
-        const tEl = courseCardRefs.get(vm.moveUpTargetId);
-        if (sEl && tEl) {
-          paths.push({ key: `moveup:${vm.id}:${vm.moveUpTargetId}`, d: makeMoveUpPath(rowEl, sEl, tEl), variant: 'dashed' });
-        }
-      });
-
+      explicitSources.forEach(vm => { if (!vm.moveUpTargetId) return; const sEl = courseCardRefs.get(vm.id); const tEl = courseCardRefs.get(vm.moveUpTargetId); if (sEl && tEl) paths.push({ key: `moveup:${vm.id}:${vm.moveUpTargetId}`, d: makeMoveUpPath(rowEl, sEl, tEl), variant: 'dashed' }); });
       for (let i = 0; i < currentGrades.length - 1; i++) {
-        const outId = getGradeExitPoint(dept, currentGrades[i]!);
-        const inId = getGradeEntryPoint(dept, currentGrades[i+1]!);
-        
+        const outId = getGradeExitPoint(dept, currentGrades[i]!); const inId = getGradeEntryPoint(dept, currentGrades[i+1]!);
         if (outId && inId) {
-          const outVm = viewState.value[outId];
-          if (outVm?.isMoveUpSource && outVm.moveUpTargetId === inId) continue;
-
-          const startEl = getArrowAnchorEl(outId, dept, currentGrades[i]!);
-          const endEl = getArrowAnchorEl(inId, dept, currentGrades[i+1]!);
-          if (startEl && endEl) {
-            paths.push({ key: `lane:${dept}:${currentGrades[i]}:${currentGrades[i+1]}`, d: makeLanePath(rowEl, startEl, endEl), variant: 'solid' });
-          }
+          const outVm = viewState.value[outId]; if (outVm?.isMoveUpSource && outVm.moveUpTargetId === inId) continue;
+          const startEl = getArrowAnchorEl(outId, dept, currentGrades[i]!); const endEl = getArrowAnchorEl(inId, dept, currentGrades[i+1]!);
+          if (startEl && endEl) paths.push({ key: `lane:${dept}:${currentGrades[i]}:${currentGrades[i+1]}`, d: makeLanePath(rowEl, startEl, endEl), variant: 'solid' });
         }
       }
     } else {
       for (let i = 0; i < currentGrades.length - 1; i++) {
-        const startEl = getArrowAnchorEl(getGradeExitPoint(dept, currentGrades[i]!), dept, currentGrades[i]!);
-        const endEl = getArrowAnchorEl(getGradeEntryPoint(dept, currentGrades[i+1]!), dept, currentGrades[i+1]!);
+        const startEl = getArrowAnchorEl(getGradeExitPoint(dept, currentGrades[i]!), dept, currentGrades[i]!); const endEl = getArrowAnchorEl(getGradeEntryPoint(dept, currentGrades[i+1]!), dept, currentGrades[i+1]!);
         if (startEl && endEl) paths.push({ key: `col:${dept}:${currentGrades[i]}:${currentGrades[i+1]}`, d: makeLanePath(rowEl, startEl, endEl), variant: 'solid' });
       }
     }
@@ -714,27 +646,21 @@ const recomputeArrowPaths = () => {
   });
   deptArrowPaths.value = nextPaths;
 };
-
 const scheduleArrowRefresh = () => { cancelAnimationFrame(arrowFrame); arrowFrame = window.requestAnimationFrame(() => nextTick(recomputeArrowPaths)); };
 
 watch(viewState, scheduleArrowRefresh, { deep: true, immediate: true });
 watch([visibleCoursesByBucket, collapsedDepts, grades], scheduleArrowRefresh, { deep: true });
 
 onMounted(async () => {
-  // Initialize Vercel Analytics
   inject();
-
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  isDarkMode.value = prefersDark;
-  document.documentElement.classList.toggle('dark', prefersDark);
-
+  isDarkMode.value = prefersDark; document.documentElement.classList.toggle('dark', prefersDark);
   window.addEventListener('keydown', handleEscape); window.addEventListener('resize', scheduleArrowRefresh);
   if (typeof ResizeObserver !== 'undefined') resizeObserver = new ResizeObserver(scheduleArrowRefresh);
   try {
     const data = await (new Updater()).initialize();
     if (data) {
-      catalogData.value = data; controller.value = new CourseSelectionController(data);
-      controller.value.connectView(v => viewState.value = v);
+      catalogData.value = data; controller.value = new CourseSelectionController(data); controller.value.connectView(v => viewState.value = v);
       collapsedDepts.value = new Set(Object.keys(data.departments));
       await nextTick();
       if (matrixRef.value && resizeObserver) resizeObserver.observe(matrixRef.value);
