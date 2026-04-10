@@ -1,353 +1,313 @@
 <template>
   <div
-    class="min-h-screen bg-[#F2F2F7] dark:bg-[#1C1C1E] text-[#1C1C1E] dark:text-[#F2F2F7] p-4 md:p-8 font-sans transition-colors duration-300 relative overflow-hidden flex flex-col antialiased selection:bg-cyan-500/30"
+    class="h-screen bg-[#F2F2F7] dark:bg-[#000000] text-[#1C1C1E] dark:text-[#F2F2F7] p-4 md:p-6 font-sans transition-colors duration-300 relative overflow-hidden flex flex-col antialiased selection:bg-[#007AFF]/30"
     @mousemove="updateMousePosition"
   >
     <!-- Header -->
-    <header class="flex flex-wrap justify-between items-center gap-6 mb-8 relative z-10 shrink-0 max-w-[1400px] mx-auto w-full">
+    <header class="flex justify-between items-center mb-4 relative z-50 shrink-0 max-w-[1400px] mx-auto w-full px-2">
       <div class="flex flex-col">
-        <h1 class="text-3xl md:text-4xl font-bold tracking-tight text-black dark:text-white">
-          {{ catalogData?.catalogName || 'Course Catalog' }}
+        <h1 class="text-2xl md:text-[28px] font-semibold tracking-tight text-black dark:text-white leading-tight">
+          {{ catalogData?.catalogName || 'Course Catalog Interactive' }}
         </h1>
-        <p class="text-[#8E8E93] dark:text-[#98989D] mt-1 font-medium text-sm flex items-center gap-2">
-          <span>v{{ catalogData?.version || '1.0' }}</span>
+        <p class="text-[#8E8E93] dark:text-[#98989D] mt-0.5 font-medium tracking-tight text-[11px] flex items-center gap-2">
+          <span>{{ catalogData?.version || 'unknown version' }}</span>
           <span class="w-1 h-1 rounded-full bg-gray-300 dark:bg-gray-700"></span>
-          <span>last update on {{ catalogData?.lastUpdated || 'unknown' }}</span>
+          <span>Updated {{ catalogData?.lastUpdated || 'unknown' }}</span>
         </p>
       </div>
 
-      <div class="flex items-center gap-3 flex-grow justify-end">
-        
-        <!-- 🌟 NEW: Export Plan Button (Only shows if courses are selected) 🌟 -->
-        <button
-          v-if="hasSelectedCourses"
-          @click="showExportModal = true"
-          class="px-5 py-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-bold shadow-md shadow-blue-500/20 transition-all active:scale-95 text-sm mr-2 flex items-center gap-2"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-          Export Plan
-        </button>
+      <div class="flex items-center gap-3">
+        <!-- Export Dropdown Button -->
+        <div class="relative export-menu-container z-[200]" v-if="hasSelectedCourses">
+          <button
+            @click="showExportDropdown = !showExportDropdown"
+            class="h-8 px-4 rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 text-[#007AFF] font-medium transition-colors text-[13px] flex items-center gap-1.5 active:scale-95"
+            :disabled="isExporting"
+          >
+            <svg v-if="isExporting" class="animate-spin h-3.5 w-3.5 text-[#007AFF]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <svg v-else class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+            {{ isExporting ? 'Exporting...' : 'Export' }}
+          </button>
 
-        <div class="relative w-full max-w-xs group">
-          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-          </svg>
-          <input
-            v-model="searchQuery"
-            type="text"
-            placeholder="Search courses..."
-            class="w-full pl-9 pr-4 py-2 rounded-full border-none bg-black/5 dark:bg-white/10 backdrop-blur-md focus:ring-2 focus:ring-blue-500 focus:bg-white dark:focus:bg-[#2C2C2E] outline-none transition-all shadow-sm placeholder-gray-500 text-sm font-medium"
-          />
+          <!-- Pill-like Dropdown Pop-up -->
+          <Transition name="tooltip-pop">
+            <div v-if="showExportDropdown" class="absolute right-0 mt-2 w-40 bg-[#e5e5ea]/95 dark:bg-[#2C2C2E]/95 backdrop-blur-md border border-black/5 dark:border-white/10 rounded-xl shadow-md flex flex-col p-1 z-[200]">
+              <button @click="triggerExport('png')" class="text-left px-3 py-1.5 text-[13px] font-medium hover:bg-[#007AFF] hover:text-white rounded-lg transition-colors text-black dark:text-white">Export as PNG</button>
+              <button @click="triggerExport('pdf')" class="text-left px-3 py-1.5 text-[13px] font-medium hover:bg-[#007AFF] hover:text-white rounded-lg transition-colors text-black dark:text-white">Export as PDF</button>
+            </div>
+          </Transition>
         </div>
-        <button @click="toggleDarkMode" class="w-10 h-10 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all active:scale-90">
-          {{ isDarkMode ? '☀️' : '🌙' }}
+        
+        <button @click="toggleDarkMode" class="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/20 transition-all text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white active:scale-95">
+          <svg v-if="!isDarkMode" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+          <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
         </button>
       </div>
     </header>
 
     <!-- Loading Skeleton -->
-    <div v-if="!catalogData" class="w-full max-w-[1400px] mx-auto flex-grow relative z-10 animate-pulse">
-      <div class="w-full bg-white/50 dark:bg-[#2C2C2E]/50 rounded-[2rem] p-6 space-y-6 shadow-sm border border-black/5 dark:border-white/5">
-        <div class="h-8 bg-black/5 dark:bg-white/5 rounded-lg w-1/4 mb-8"></div>
-        <div v-for="row in 4" :key="row" class="grid grid-cols-[180px_1fr_1fr_1fr_1fr] gap-4">
-          <div class="h-5 bg-black/5 dark:bg-white/5 rounded w-1/2 mt-4"></div>
-          <div v-for="col in 4" :key="col" class="h-20 bg-black/5 dark:bg-white/5 rounded-2xl"></div>
-        </div>
+    <div v-if="!catalogData" class="w-full max-w-[1400px] mx-auto flex-1 min-h-0 bg-white dark:bg-[#1C1C1E] rounded-[20px] shadow-sm border border-black/5 dark:border-white/5 p-6 animate-pulse">
+      <div class="h-8 bg-black/5 dark:bg-white/5 rounded-lg w-1/4 mb-8"></div>
+      <div v-for="row in 4" :key="row" class="grid grid-cols-[140px_1fr_1fr_1fr_1fr] gap-4 mb-4">
+        <div class="h-5 bg-black/5 dark:bg-white/5 rounded w-1/2 mt-2"></div>
+        <div v-for="col in 4" :key="col" class="h-10 bg-black/5 dark:bg-white/5 rounded-lg"></div>
       </div>
     </div>
 
-    <!-- Main Grid -->
-    <div v-else class="w-full max-w-[1400px] mx-auto overflow-x-auto pb-10 relative z-10 animate-fade-in-up flex-grow custom-scrollbar">
-      <div ref="matrixRef" class="min-w-[1000px] border border-black/5 dark:border-white/10 rounded-[2rem] bg-white/70 dark:bg-[#1C1C1E]/50 backdrop-blur-xl overflow-hidden shadow-xl shadow-black/8 dark:shadow-black/40">
-        <!-- Sticky Header -->
-        <div class="grid grid-cols-[180px_1fr_1fr_1fr_1fr] bg-black/[0.02] dark:bg-white/[0.02] border-b border-black/5 dark:border-white/5">
-          <div class="p-5 font-semibold text-[#8E8E93] dark:text-[#98989D] uppercase text-xs tracking-wider flex items-center">
-            Department
-          </div>
-          <div v-for="grade in grades" :key="grade" class="p-5 font-bold text-center text-lg">
-            Grade {{ grade }}
-          </div>
-        </div>
-
-        <div v-if="activeDepartments.length === 0" class="py-32 text-center flex flex-col items-center justify-center">
-          <h3 class="text-xl font-semibold text-gray-800 dark:text-gray-200">No Results</h3>
-        </div>
-
-        <div
-          v-for="dept in activeDepartments"
-          v-else
-          :key="dept"
-          :ref="el => setDeptRowRef(dept, el as Element | null)"
-          class="relative grid grid-cols-[180px_1fr_1fr_1fr_1fr] border-b border-black/5 dark:border-white/5 hover:bg-white/20 dark:hover:bg-white/[0.02] transition-colors duration-300"
-        >
-          <!-- SVG CONNECTION LAYER -->
-          <svg
-            v-if="(deptArrowPaths[dept] || []).length > 0"
-            class="pointer-events-none absolute inset-0 h-full w-full overflow-visible z-[1]"
-            aria-hidden="true"
-          >
-            <path
-              v-for="path in deptArrowPaths[dept]"
-              :key="path.key"
-              :d="path.d"
-              fill="none"
-              stroke-linecap="round"
-              vector-effect="non-scaling-stroke"
-              :stroke-dasharray="path.variant === 'dashed' ? '7 7' : undefined"
-              :class="path.variant === 'dashed'
-                ? 'stroke-[2.5] stroke-orange-500 dark:stroke-orange-500'
-                : 'stroke-[2.25] stroke-[#3B82F6]/70 dark:stroke-[#60A5FA]/65'"
-            />
-          </svg>
-
-          <!-- Dept Title -->
-          <div
-            @click="toggleDept(dept)"
-            class="p-5 flex items-start justify-between gap-3 border-r border-black/5 dark:border-white/5 cursor-pointer group z-[10]"
-          >
-            <h2 class="font-semibold text-sm group-hover:text-blue-500 transition-colors capitalize leading-snug pt-0.5">
-              {{ dept }}
-            </h2>
-            <svg class="w-4 h-4 text-gray-400 transition-transform duration-300 mt-0.5 shrink-0" :class="{ 'rotate-180': collapsedDepts.has(dept) }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+    <!-- Main App Container -->
+    <div v-else ref="appContainer" class="flex-1 min-h-0 max-w-[1400px] mx-auto w-full bg-[#FFFFFF] dark:bg-[#1C1C1E] rounded-[20px] overflow-hidden shadow-2xl border border-black/10 dark:border-white/10 relative z-10 flex animate-fade-in-up">
+      
+      <!-- Left Sidebar (Subjects List) -->
+      <div
+        class="shrink-0 flex flex-col bg-[#F2F2F7] dark:bg-[#282829] z-20 transition-[margin-left] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] relative border-r border-black/10 dark:border-white/10"
+        :style="{ width: leftPanelWidth + 'px', marginLeft: viewingCourseId ? -leftPanelWidth + 'px' : '0px' }"
+        :class="[
+          viewingCourseId ? 'pointer-events-none' : '',
+          { 'no-transition': isResizingLeft }
+        ]"
+      >
+        <!-- Pinned Search Bar -->
+        <div class="h-14 px-4 flex items-center border-b border-black/5 dark:border-white/5 bg-[#F2F2F7]/95 dark:bg-[#282829]/95 backdrop-blur-xl sticky top-0 z-10 shrink-0">
+          <div class="relative w-full group">
+            <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 group-focus-within:text-[#007AFF] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
             </svg>
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search"
+              class="w-full pl-8 pr-3 py-1.5 rounded-xl border-none bg-black/5 dark:bg-black/20 focus:ring-2 focus:ring-[#007AFF] outline-none transition-all shadow-none placeholder-gray-500 text-[13px] font-medium text-black dark:text-white"
+            />
           </div>
-
-          <!-- Grade Slots -->
-          <div v-for="grade in grades" :key="grade" class="p-3.5 flex flex-col gap-2 border-r border-black/5 dark:border-white/5 relative z-[10]">
-            <!-- Collapsed Content -->
-            <div v-if="collapsedDepts.has(dept)" :ref="el => setCollapsedSummaryRef(dept, grade, el as Element | null)" class="h-full flex">
-              <button
-                v-if="getCollapsedSummary(dept, grade)"
-                type="button"
-                @click="openCourseInfo(getCollapsedSummary(dept, grade)!.id)"
-                :class="[uiConfig.summaryBase, getSummaryStyles(getCollapsedSummary(dept, grade)!.id)]"
-              >
-                <div class="flex items-start justify-between gap-3">
-                  <div class="min-w-0">
-                    <h3 class="font-bold text-[13px] leading-snug break-words">
-                      {{ viewState[getCollapsedSummary(dept, grade)!.id]?.name || getCollapsedSummary(dept, grade)!.raw.name }}
-                    </h3>
-                  </div>
-                </div>
-              </button>
-              <div v-else class="w-full min-h-[74px] rounded-2xl border border-dashed border-black/15 dark:border-white/15 text-[#8E8E93] dark:text-[#98989D] flex items-center justify-center px-3 text-sm font-semibold bg-white/35 dark:bg-white/[0.03]">
-                Ready to select
-              </div>
+        </div>
+        
+        <!-- Scrollable Subject List -->
+        <div class="flex-1 overflow-y-auto" :class="{ 'hide-scrollbar': selectedDept }" ref="leftScrollRef">
+          <div class="py-2 pl-2 pr-3.5 space-y-0.5">
+            <button
+              v-for="dept in activeDepartments"
+              :key="dept"
+              @click="toggleDept(dept)"
+              :class="[
+                'w-full text-left px-3 h-9 rounded-lg text-[13px] font-medium line-clamp-1 flex items-center shrink-0',
+                selectedDept === dept 
+                  ? 'bg-[#007AFF] text-white shadow-sm' 
+                  : 'text-gray-800 dark:text-gray-200 hover:bg-black/5 dark:hover:bg-white/10'
+              ]"
+            >
+              {{ dept }}
+            </button>
+            <div v-if="activeDepartments.length === 0" class="px-3 py-6 text-center text-xs text-[#8E8E93] font-medium">
+              No matches found
             </div>
+          </div>
+          <div class="px-4 pt-2 pb-4 text-[10px] text-gray-400 dark:text-gray-600 leading-tight">
+            Frontend by Ziqian Huang, backend and UI optimizations by Will Chen
+          </div>
+        </div>
 
-            <!-- Expanded Content -->
-            <div v-else class="flex flex-col gap-2.5 h-full">
-              <div v-for="course in getCourses(dept, grade)" :key="course.id" class="relative group"
-                   @mouseenter="showTooltip(viewState[course.id]?.status === 'locked' && viewState[course.id]?.lockReason ? viewState[course.id]?.lockReason || '' : '')"
-                   @mouseleave="hideTooltip"
-              >
+        <!-- Invisible Overlapping Left Resizer -->
+        <div class="absolute -right-1.5 top-0 bottom-0 w-3 cursor-col-resize z-30" @mousedown="startLeftResize"></div>
+      </div>
+
+      <!-- Center Content Area -->
+      <div class="flex-1 min-w-0 flex flex-col relative bg-white dark:bg-[#1C1C1E] z-10 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]">
+        
+        <!-- Sticky Header (Grades) -->
+        <div class="h-14 flex items-center border-b border-black/5 dark:border-white/5 sticky top-0 z-30 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl shrink-0">
+          <button v-if="selectedDept" @click="selectedDept = null" class="absolute left-3 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-gray-500 dark:text-gray-400 hover:text-black dark:hover:text-white z-40">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>
+          </button>
+          <div class="grid grid-cols-4 w-full h-full">
+            <div v-for="grade in grades" :key="grade" class="flex items-center justify-center font-medium text-[13px] text-[#8E8E93] dark:text-[#98989D]">
+              Grade {{ grade }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Scrollable Main Grid -->
+        <div class="flex-1 overflow-y-auto overflow-x-hidden relative" ref="rightScrollRef" @click="handleContentAreaClick">
+          
+          <!-- Summary View Flow -->
+          <div v-if="!selectedDept" class="p-2 space-y-0.5 relative pb-10">
+            <div v-for="dept in visibleDepts" :key="dept" :ref="el => setDeptRowRef(dept, el as Element | null)" class="relative h-9 grid grid-cols-4 gap-4 px-2 hover:bg-black/[0.02] dark:hover:bg-white/[0.02] rounded-lg transition-colors">
+              
+              <!-- SVG Connections -->
+              <svg v-if="(deptArrowPaths[dept] || []).length > 0" class="pointer-events-none absolute inset-0 h-full w-full overflow-visible z-[1] transition-opacity duration-200" :class="isAnimatingLayout ? 'opacity-0' : 'opacity-100'" aria-hidden="true">
+                <path v-for="path in deptArrowPaths[dept]" :key="path.key" :d="path.d" fill="none" stroke-linecap="round" vector-effect="non-scaling-stroke" :stroke-dasharray="path.variant === 'dashed' ? '4 4' : undefined" :class="path.variant === 'dashed' ? 'stroke-[2] stroke-[#FF9500] dark:stroke-[#FF9F0A]' : 'stroke-[1.5] stroke-[#007AFF] dark:stroke-[#0A84FF]'" />
+              </svg>
+
+              <!-- Grade Slots -->
+              <div v-for="grade in grades" :key="grade" class="relative z-10 flex items-center justify-center h-full">
                 <button
-                  :ref="el => setCourseCardRef(course.id, el as Element | null)"
+                  v-if="getCollapsedSummary(dept, grade)"
                   type="button"
-                  @click="handleCourseClick(course.id)"
-                  :class="[
-                    uiConfig.cardBase,
-                    getCardStyles(course.id)
-                  ]"
+                  @click="openCourseInfo(getCollapsedSummary(dept, grade)!.id)"
+                  class="w-full h-7 px-2 rounded-[6px] border text-left text-[11px] font-medium leading-tight truncate transition-colors shadow-sm"
+                  :class="getSummaryStyles(getCollapsedSummary(dept, grade)!.id)"
+                  :ref="el => setCollapsedSummaryRef(dept, grade, el as Element | null)"
                 >
-                  <div class="pr-2">
-                    <h3 class="font-bold text-[13px] leading-snug">{{ viewState[course.id]?.name || course.raw.name }}</h3>
-                  </div>
-                  <div class="w-full h-1 bg-black/5 dark:bg-white/10 rounded-full overflow-hidden" v-if="course.raw.crowdRating">
-                    <div class="h-full bg-black/25 dark:bg-white/30 rounded-full transition-all duration-300" :style="{ width: `${(course.raw.crowdRating / 10) * 100}%` }"></div>
-                  </div>
+                  {{ viewState[getCollapsedSummary(dept, grade)!.id]?.name || getCollapsedSummary(dept, grade)!.raw.name }}
                 </button>
-
-                <!-- Floating Info & MoveUp Action Center -->
-                <div class="absolute right-2.5 top-0 bottom-0 flex flex-col justify-center gap-1.5 z-20">
-                  <button
-                    type="button"
-                    @click.stop="openCourseInfo(course.id)"
-                    :class="[
-                      uiConfig.iconBtn,
-                      viewState[course.id]?.isSelected
-                        ? 'bg-white border-transparent text-blue-600 hover:bg-blue-50'
-                        : 'border-black/10 dark:border-white/10 bg-white/92 dark:bg-white/10 text-slate-700 dark:text-white/85 hover:bg-white dark:hover:bg-white/20'
-                    ]"
-                  >
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8h.01M11 12h1v4h1m-1 5a9 9 0 110-18 9 9 0 010 18z" /></svg>
-                  </button>
-                  <button
-                    v-if="moveUpState.active && moveUpState.sourceId === course.id"
-                    type="button"
-                    @click.stop="cancelMoveUpMode"
-                    @mouseenter="showTooltip('Cancel move-up selection')"
-                    @mouseleave="hideTooltip"
-                    class="inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-colors bg-red-500 border-red-500 text-white hover:bg-red-600 opacity-100"
-                  >
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                  </button>
-                  <button
-                    v-else-if="!moveUpState.active && viewState[course.id]?.isSelected && viewState[course.id]?.moveUpAvailable && !viewState[course.id]?.isMoveUpSource"
-                    type="button"
-                    @click.stop="startMoveUp(course.id)"
-                    @mouseenter="showTooltip('Select a course to move up to')"
-                    @mouseleave="hideTooltip"
-                    class="inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-colors bg-white dark:bg-white/10 border-orange-500/40 text-orange-500 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-                  >
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7m0 0H9m8 0v8"></path></svg>
-                  </button>
+                <div v-else class="w-full h-7 rounded-[6px] border border-dashed border-black/10 dark:border-white/10 flex items-center justify-center text-[10px] font-medium text-[#8E8E93]/50 bg-black/[0.01] dark:bg-white/[0.01]" :ref="el => setCollapsedSummaryRef(dept, grade, el as Element | null)">
+                  -
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Specific Select Flow -->
+          <div v-else class="p-6 relative min-h-full pb-20">
+            <div v-for="dept in visibleDepts" :key="dept" :ref="el => setDeptRowRef(dept, el as Element | null)" class="relative grid grid-cols-4 gap-5 h-full">
+              
+              <!-- SVG Connections -->
+              <svg v-if="(deptArrowPaths[dept] || []).length > 0" class="pointer-events-none absolute inset-0 h-full w-full overflow-visible z-[1] transition-opacity duration-200" :class="isAnimatingLayout ? 'opacity-0' : 'opacity-100'" aria-hidden="true">
+                <path v-for="path in deptArrowPaths[dept]" :key="path.key" :d="path.d" fill="none" stroke-linecap="round" vector-effect="non-scaling-stroke" :stroke-dasharray="path.variant === 'dashed' ? '5 5' : undefined" :class="path.variant === 'dashed' ? 'stroke-[2] stroke-[#FF9500] dark:stroke-[#FF9F0A]' : 'stroke-[1.5] stroke-[#007AFF] dark:stroke-[#0A84FF]'" />
+              </svg>
+
+              <!-- Expanded Cards -->
+              <div v-for="grade in grades" :key="grade" class="relative z-10 flex flex-col gap-3">
+                <div v-for="course in getCourses(dept, grade)" :key="course.id" class="relative group" @mouseenter="hoveredCourseId = course.id; showTooltip(viewState[course.id]?.status === 'locked' && viewState[course.id]?.lockReason ? viewState[course.id]?.lockReason || '' : '')" @mouseleave="hoveredCourseId = null; hideTooltip()">
+                  
+                  <button
+                    :ref="el => setCourseCardRef(course.id, el as Element | null)"
+                    type="button"
+                    @click="handleCourseClick(course.id)"
+                    :class="[uiConfig.cardBase, getCardStyles(course.id)]"
+                  >
+                    <div class="pr-1">
+                      <h3 class="font-semibold tracking-tight text-[13px] leading-[1.3]">{{ viewState[course.id]?.name || course.raw.name }}</h3>
+                    </div>
+                    <div class="w-full h-[3px] bg-black/5 dark:bg-white/10 rounded-full overflow-hidden mt-1" v-if="course.raw.crowdRating">
+                      <div class="h-full rounded-full transition-all duration-300" 
+                        :class="viewState[course.id]?.status === 'selected' ? 'bg-white/40' : 'bg-black/20 dark:bg-white/30'"
+                        :style="{ width: `${(course.raw.crowdRating / 10) * 100}%` }"></div>
+                    </div>
+                  </button>
+
+                  <!-- Floating Info & MoveUp Actions -->
+                  <div class="absolute right-1.5 top-1.5 flex flex-col gap-1 z-20">
+                    <button type="button" @click.stop="openCourseInfo(course.id)" :class="[uiConfig.iconBtn, viewState[course.id]?.isSelected ? 'bg-white border-transparent text-[#007AFF]' : 'border-black/10 dark:border-white/10 bg-white/95 dark:bg-white/10 text-gray-500 dark:text-white/85 hover:bg-white dark:hover:bg-white/20 hover:text-black dark:hover:text-white']">
+                      <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 8h.01M11 12h1v4h1m-1 5a9 9 0 110-18 9 9 0 010 18z" /></svg>
+                    </button>
+                    <button v-if="moveUpState.active && moveUpState.sourceId === course.id" type="button" @click.stop="cancelMoveUpMode" @mouseenter="showTooltip('Cancel move-up selection')" @mouseleave="hideTooltip" class="inline-flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition-colors bg-[#FF3B30] border-[#FF3B30] text-white hover:bg-[#FF453A] opacity-100">
+                      <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                    <button v-else-if="!moveUpState.active && viewState[course.id]?.isSelected && viewState[course.id]?.moveUpAvailable && !viewState[course.id]?.isMoveUpSource" type="button" @click.stop="startMoveUp(course.id)" @mouseenter="showTooltip('Select a course to move up to')" @mouseleave="hideTooltip" class="inline-flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition-colors bg-white dark:bg-white/10 border-[#FF9500]/40 text-[#FF9500] dark:text-[#FF9F0A] hover:bg-orange-50 dark:hover:bg-[#FF9F0A]/20 opacity-100 lg:opacity-0 lg:group-hover:opacity-100">
+                      <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7m0 0H9m8 0v8"></path></svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Info Panel (Animated sliding from right) -->
+      <div
+        class="shrink-0 bg-[#F2F2F7] dark:bg-[#282829] z-20 flex flex-col transition-[margin-right] duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] relative border-l border-black/10 dark:border-white/10"
+        :style="{ width: rightPanelWidth + 'px', marginRight: viewingCourseId ? '0px' : -rightPanelWidth + 'px' }"
+        :class="[
+          !viewingCourseId ? 'pointer-events-none' : '',
+          { 'no-transition': isResizingRight }
+        ]"
+      >
+        <!-- Invisible Overlapping Right Resizer -->
+        <div class="absolute -left-1.5 top-0 bottom-0 w-3 cursor-col-resize z-30" @mousedown="startRightResize"></div>
+
+        <div v-if="viewingCourseId" class="flex-1 overflow-y-auto hide-scrollbar p-4 flex flex-col h-full">
+          <!-- Header -->
+          <div class="flex justify-between items-start mb-4 gap-2">
+            <div class="px-2 py-0.5 bg-blue-100 dark:bg-[#007AFF]/20 text-[#007AFF] dark:text-[#0A84FF] font-semibold text-[9px] uppercase tracking-wider rounded-md truncate">
+              {{ activeRaw?.dept }} • G{{ activeVm?.grade || activeRaw?.grade }}
+            </div>
+            <button @click="viewingCourseId = null" class="shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-gray-500 hover:bg-black/10 dark:hover:bg-white/20 active:scale-95"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+          </div>
+
+          <h2 class="text-lg font-semibold tracking-tight text-black dark:text-white leading-tight mb-5">{{ activeVm?.name || activeRaw?.raw.name }}</h2>
+
+          <!-- Rating -->
+          <div class="mb-5 rounded-[12px] border border-black/5 dark:border-white/5 p-3 bg-white/50 dark:bg-white/5 shadow-sm">
+            <div class="flex justify-between items-end mb-2">
+              <div>
+                <div class="text-[9px] font-bold uppercase tracking-wider text-[#8E8E93]">Crowd Rating</div>
+                <div class="text-xl font-bold text-black dark:text-white tracking-tight">
+                  {{ formatRating(activeRaw?.raw.crowdRating) }}<span class="text-[10px] font-medium opacity-40 ml-0.5">/ 10</span>
+                </div>
+              </div>
+            </div>
+            <div class="h-1.5 w-full bg-black/5 dark:bg-black/40 rounded-full overflow-hidden">
+              <div class="h-full bg-[#34C759] transition-all duration-300" :style="{ width: `${((activeRaw?.raw.crowdRating || 0) / 10) * 100}%` }"></div>
+            </div>
+          </div>
+
+          <!-- MoveUp Status -->
+          <div v-if="activeVm?.isMoveUpTarget" class="mb-5 py-2 px-3 rounded-lg border bg-[#FF9500]/10 border-[#FF9500]/30 text-[#FF9500] dark:text-[#FF9F0A]">
+            <div class="text-[9px] font-bold uppercase tracking-widest opacity-80">Accelerated path</div>
+            <div class="font-medium text-[11px] mt-0.5 leading-tight">Moved up from {{ getCourseName(activeVm.moveUpSourceId) }}</div>
+          </div>
+
+          <div v-else-if="activeVm?.isMoveUpSource" class="mb-5 py-2 px-3 rounded-lg border bg-orange-50 border-orange-200 dark:bg-[#FF9500]/10 dark:border-[#FF9500]/30 text-orange-700 dark:text-[#FF9F0A]">
+            <div class="text-[9px] font-bold uppercase tracking-widest opacity-80">Accelerated path</div>
+            <div class="font-medium text-[11px] mt-0.5 leading-tight">Moved up to {{ getCourseName(activeVm.moveUpTargetId) }}</div>
+            <button @click="removeMoveUp(viewingCourseId!)" class="mt-2 w-full py-1.5 rounded-md bg-[#FF9500] text-white text-[10px] font-bold hover:bg-[#FF9F0A] transition-colors shadow-sm">Cancel Move-Up</button>
+          </div>
+
+          <!-- Description & Notes -->
+          <div class="space-y-4">
+            <div>
+              <h4 class="text-[9px] font-bold text-[#8E8E93] uppercase tracking-widest mb-1 ml-0.5">Description</h4>
+              <p class="text-[12px] text-gray-800 dark:text-gray-200 leading-relaxed bg-white/50 dark:bg-white/5 p-2.5 rounded-lg border border-black/5 dark:border-white/5">{{ activeRaw?.raw.description || 'No description available.' }}</p>
+            </div>
+            <div v-if="activeRaw?.raw.crowdReview">
+              <h4 class="text-[9px] font-bold text-[#8E8E93] uppercase tracking-widest mb-1 ml-0.5">Notes</h4>
+              <p class="text-[12px] text-gray-800 dark:text-gray-200 leading-relaxed bg-[#FF9500]/5 dark:bg-[#FF9500]/10 p-2.5 rounded-lg border border-[#FF9500]/10 dark:border-[#FF9500]/20">{{ activeRaw?.raw.crowdReview }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- INVISIBLE EXPORT TARGET -->
+    <div class="fixed top-0 left-[200vw] w-[1200px] pointer-events-none z-[-1]">
+      <div ref="exportRef" class="w-full bg-white text-black p-12 flex flex-col font-sans">
+        <div class="text-center mb-10">
+          <h1 class="text-4xl font-semibold tracking-tight text-gray-900">4-Year Academic Plan</h1>
+          <p class="text-gray-500 mt-2 font-medium">Generated by SHSID's Interactive Course Catalog</p>
+        </div>
+
+        <div class="grid grid-cols-[160px_1fr_1fr_1fr_1fr] gap-6 mb-6">
+          <div class="font-bold text-gray-400 uppercase tracking-widest text-xs pt-2">Department</div>
+          <div v-for="grade in grades" :key="grade" class="font-bold tracking-tight text-center text-xl text-gray-800 border-b border-gray-200 pb-3">Grade {{ grade }}</div>
+        </div>
+
+        <div v-for="(gradeMap, dept) in exportPlan" :key="dept" class="grid grid-cols-[160px_1fr_1fr_1fr_1fr] gap-6 py-6 border-b border-gray-100 relative">
+          <!-- Flowline -->
+          <div class="absolute left-[160px] right-10 top-1/2 h-[1px] bg-gray-200 -translate-y-1/2 z-0 rounded-full"></div>
+          
+          <div class="font-semibold text-gray-800 capitalize flex items-center bg-white z-10 pr-4 text-lg">{{ dept }}</div>
+
+          <div v-for="grade in grades" :key="grade" class="relative z-10 flex flex-col gap-3 items-center justify-center w-full px-2">
+            <template v-if="gradeMap && gradeMap[grade]?.length">
+              <div v-for="course in gradeMap[grade]" :key="course.id" class="w-full p-4 rounded-xl shadow-sm relative border" :class="viewState[course.id]?.isMoveUpTarget ? 'bg-[#FEF9C3] border-[#EAB308] text-[#A16207]' : 'bg-[#F0F8FF] border-[#93C5FD] text-[#1E3A8A]'">
+                <div class="font-semibold text-sm leading-snug">{{ viewState[course.id]?.name || course.raw.name }}</div>
+                <div v-if="viewState[course.id]?.isMoveUpTarget" class="text-[10px] font-bold opacity-80 mt-1.5 tracking-wider">via {{ getCourseName(viewState[course.id]?.moveUpSourceId) }}</div>
+              </div>
+            </template>
+            <div v-else class="w-3 h-3 rounded-full bg-gray-200 shadow-sm flex items-center justify-center"></div>
+          </div>
+        </div>
+
+        <div class="mt-14 text-center text-[10px] text-gray-400 font-medium leading-relaxed">
+          Content for reference only: please refer to the Course Catalog or talk to your homeroom teacher for accurate results!<br>
+          Derived from extracted course data by Will Chen / frontend by Ziqian Huang
         </div>
       </div>
     </div>
 
-    <!-- 🌟 NEW: PDF Export Modal 🌟 -->
-    <Transition name="fade">
-      <div v-if="showExportModal" class="fixed inset-0 z-[100] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 md:p-8">
-        <div class="bg-[#F2F2F7] dark:bg-[#1C1C1E] rounded-3xl w-full max-w-6xl max-h-full flex flex-col overflow-hidden shadow-2xl border border-white/20">
-          
-          <!-- Modal Header -->
-          <div class="px-6 py-5 border-b border-black/5 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#2C2C2E]">
-            <h2 class="text-xl font-bold text-black dark:text-white">Review & Export Plan</h2>
-            <div class="flex gap-3">
-              <button @click="showExportModal = false" class="px-4 py-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl font-medium transition-colors">Cancel</button>
-              <button @click="downloadPDF" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold shadow-md transition-transform active:scale-95 flex items-center gap-2">
-                <svg v-if="isExporting" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                <span v-if="isExporting">Generating PDF...</span>
-                <span v-else>Download PDF</span>
-              </button>
-            </div>
-          </div>
-
-          <!-- Printable Area (Always Light Theme for Clean Printing) -->
-          <div class="overflow-y-auto p-4 md:p-8 bg-gray-100 dark:bg-black/50">
-            <div ref="exportRef" class="bg-white p-8 md:p-12 rounded-2xl shadow-sm text-black min-w-[900px] mx-auto border border-gray-200">
-              
-              <div class="text-center mb-10">
-                <h1 class="text-4xl font-black text-gray-900 tracking-tight">4-Year Academic Pathway</h1>
-                <p class="text-gray-500 mt-2 font-medium">Generated by SHSID CC Advisor</p>
-              </div>
-
-              <!-- Export Grid Headers -->
-              <div class="grid grid-cols-[160px_1fr_1fr_1fr_1fr] gap-6 mb-6">
-                <div class="font-bold text-gray-400 uppercase tracking-widest text-xs pt-2">Department</div>
-                <div v-for="grade in grades" :key="grade" class="font-black text-center text-xl text-gray-800 border-b-2 border-gray-200 pb-3">Grade {{ grade }}</div>
-              </div>
-
-              <!-- Export Grid Rows (Flow Diagram Style) -->
-              <div v-for="(gradeMap, dept) in selectedPlan" :key="dept" class="grid grid-cols-[160px_1fr_1fr_1fr_1fr] gap-6 py-6 border-b border-gray-100 relative group">
-                
-                <!-- Background Connection Line to simulate flow diagram -->
-                <div class="absolute left-[160px] right-10 top-1/2 h-1 bg-gray-100 -translate-y-1/2 z-0 rounded-full"></div>
-
-                <!-- Dept Title -->
-                <div class="font-bold text-gray-800 capitalize flex items-center bg-white z-10 pr-4 text-lg">{{ dept }}</div>
-
-                <!-- Grade Slots -->
-                <div v-for="grade in grades" :key="grade" class="relative z-10 flex flex-col gap-3 items-center justify-center w-full px-2">
-                  
-                  <div v-if="gradeMap[grade]" v-for="course in gradeMap[grade]" :key="course.id" class="w-full bg-blue-50 border-2 border-blue-500 text-blue-900 p-4 rounded-xl shadow-sm relative">
-                    <div class="text-[10px] font-bold opacity-70 uppercase tracking-wider mb-1">{{ course.raw.level || 'Standard' }}</div>
-                    <div class="font-bold text-sm leading-snug">{{ course.raw.name }}</div>
-                    <div class="text-[10px] font-mono opacity-60 mt-1.5">{{ course.id }}</div>
-                  </div>
-                  
-                  <!-- Empty Dot indicating pathway passage -->
-                  <div v-else class="w-6 h-6 rounded-full bg-gray-100 border-4 border-white shadow-sm flex items-center justify-center"></div>
-
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Side-over Detail Panel -->
-    <Transition name="slide-sheet">
-      <div v-if="viewingCourseId" class="fixed inset-y-0 right-0 w-full max-w-[420px] bg-white/85 dark:bg-[#1C1C1E]/80 backdrop-blur-xl shadow-2xl shadow-black/20 border-l border-white/70 dark:border-white/10 z-[60] p-8 overflow-y-auto custom-scrollbar flex flex-col">
-        <div class="flex justify-between items-start mb-6">
-          <div class="px-3 py-1 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 font-semibold text-[10px] uppercase tracking-wider rounded-full">
-            {{ activeRaw?.dept }} • Grade {{ activeVm?.grade || activeRaw?.grade }}
-          </div>
-          <button @click="viewingCourseId = null" class="w-8 h-8 flex items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-gray-500 hover:bg-black/10 dark:hover:bg-white/20 active:scale-90"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-        </div>
-
-        <div class="flex items-start gap-4 mb-8">
-          <h2 class="flex-1 text-3xl font-bold tracking-tight text-black dark:text-white">{{ activeVm?.name || activeRaw?.raw.name }}</h2>
-          <button
-            v-if="viewingCourseId && activeVm"
-            @click="handleCourseClick(viewingCourseId)"
-            :disabled="activeVm.isMoveUpTarget"
-            :class="[
-              'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border transition-all duration-200 active:scale-95',
-              activeVm.isMoveUpTarget ? 'bg-orange-500 border-orange-500 text-white cursor-not-allowed opacity-80' : 
-              activeVm.isSelected ? 'bg-blue-500 border-blue-500 text-white' : 
-              activeVm.status === 'available' ? 'bg-white/70 dark:bg-white/5 border-black/10 dark:border-white/10 text-gray-500 hover:bg-white dark:hover:bg-white/20 hover:text-black dark:hover:text-white' :
-              'bg-white/70 dark:bg-white/5 border-black/10 dark:border-white/10 text-gray-400 cursor-not-allowed'
-            ]"
-          >
-            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
-          </button>
-        </div>
-
-        <div class="mb-6 rounded-[1.5rem] border border-black/5 dark:border-white/5 p-5 bg-white/50 dark:bg-white/5">
-          <div class="flex justify-between items-end mb-4">
-            <div>
-              <div class="text-[10px] font-bold uppercase tracking-wider text-[#8E8E93]">Crowdsourced rating</div>
-              <div class="text-3xl font-black text-black dark:text-white">
-                {{ formatRating(activeRaw?.raw.crowdRating) }}<span class="text-sm font-medium opacity-30 ml-1">/ 10</span>
-              </div>
-            </div>
-          </div>
-          <div class="h-2.5 w-full bg-gray-200 dark:bg-black/40 rounded-full overflow-hidden">
-            <div class="h-full bg-emerald-500 transition-all duration-300" :style="{ width: `${((activeRaw?.raw.crowdRating || 0) / 10) * 100}%` }"></div>
-          </div>
-        </div>
-
-        <div v-if="activeVm?.isMoveUpTarget" class="mb-8">
-          <div class="w-full py-4 px-6 rounded-2xl border flex items-center justify-between transition-all duration-200 bg-orange-500/10 border-orange-500/30 text-orange-600 dark:text-orange-400">
-            <div class="text-left">
-              <div class="text-[10px] font-bold uppercase tracking-widest opacity-80">Accelerated path</div>
-              <div class="font-bold text-sm">Moved up from {{ getCourseName(activeVm.moveUpSourceId) }}</div>
-            </div>
-            <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7m0 0H9m8 0v8" /></svg>
-          </div>
-        </div>
-
-        <div v-else-if="activeVm?.isMoveUpSource" class="mb-8">
-          <div class="w-full py-4 px-6 rounded-2xl border flex items-center justify-between transition-all duration-200 bg-orange-50 border-orange-200 dark:bg-orange-500/10 dark:border-orange-500/30 text-orange-700 dark:text-orange-400">
-            <div class="text-left">
-              <div class="text-[10px] font-bold uppercase tracking-widest opacity-80">Accelerated path</div>
-              <div class="font-bold text-sm">Moved up to {{ getCourseName(activeVm.moveUpTargetId) }}</div>
-            </div>
-            <button @click="removeMoveUp(viewingCourseId!)" class="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 transition-colors shadow-sm">Cancel</button>
-          </div>
-        </div>
-
-        <div class="space-y-6">
-          <div>
-            <h4 class="text-[10px] font-bold text-[#8E8E93] uppercase tracking-widest mb-2 ml-1">Catalog description</h4>
-            <p class="text-sm text-gray-800 dark:text-gray-200 leading-relaxed bg-white/50 dark:bg-white/5 p-4 rounded-2xl border border-black/5 dark:border-white/5">{{ activeRaw?.raw.description || 'No description available.' }}</p>
-          </div>
-          <div v-if="activeRaw?.raw.crowdReview">
-            <h4 class="text-[10px] font-bold text-[#8E8E93] uppercase tracking-widest mb-2 ml-1">Crowdsourced notes</h4>
-            <p class="text-sm text-gray-800 dark:text-gray-200 leading-relaxed bg-orange-50/50 dark:bg-orange-500/5 p-4 rounded-2xl border border-orange-100 dark:border-orange-500/10">"{{ activeRaw?.raw.crowdReview }}"</p>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Footer -->
-    <footer class="mt-8 pt-8 pb-4 border-t border-slate-200/60 dark:border-slate-800/60 relative z-10 shrink-0 text-center flex flex-col items-center max-w-4xl mx-auto space-y-5">
-      <div class="px-5 py-2.5 bg-[#FF3B30]/10 dark:bg-[#FF453A]/20 text-[#FF3B30] dark:text-[#FF453A] backdrop-blur-md rounded-xl text-[10px] font-bold uppercase tracking-widest border border-[#FF3B30]/20 shadow-sm">⚠️ Unofficial tool: derived from course data, for reference only</div>
-      <p class="text-sm font-medium text-[#8E8E93] dark:text-[#98989D]">Frontend made by <a href="https://github.com/Ziqian-Huang0607" target="_blank" class="text-black dark:text-white font-bold hover:text-blue-500 transition-colors">Ziqian Huang</a>, backend built by <a href="https://github.com/WillUHD" target="_blank" class="text-black dark:text-white font-bold hover:text-blue-500 transition-colors">Will Chen</a></p>
-    </footer>
-
-    <Transition name="tooltip-pop">
-      <div v-if="activeTooltip.visible" class="fixed z-[100] pointer-events-none text-xs" :class="tooltipThemeClass" :style="tooltipStyle">{{ activeTooltip.text }}</div>
-    </Transition>
+    <div v-if="activeTooltip.visible" class="fixed z-[100] pointer-events-none" :class="tooltipThemeClass" :style="tooltipStyle">{{ activeTooltip.text }}</div>
   </div>
 </template>
 
@@ -355,7 +315,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { inject } from '@vercel/analytics';
 
-// 🌟 NEW: PDF Export Libraries 🌟
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
@@ -369,10 +328,11 @@ interface ArrowPath { key: string; d: string; variant: 'solid' | 'dashed'; }
 interface TooltipState { visible: boolean; text: string; theme?: 'default' | 'move-up'; }
 
 const uiConfig = {
-  cardBase: 'w-full min-h-[78px] text-left px-3 py-3 pr-11 rounded-2xl relative overflow-hidden border transition-all duration-200 flex flex-col justify-between gap-2',
-  summaryBase: 'w-full min-h-[74px] rounded-2xl border px-3 py-3 text-left transition-colors shadow-sm',
-  iconBtn: 'inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-sm transition-all duration-200 opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100'
+  cardBase: 'w-full min-h-[58px] text-left px-2.5 py-2 pr-6 rounded-xl relative overflow-hidden border transition-[transform,opacity,box-shadow,background-color,border-color] duration-200 flex flex-col justify-between gap-1 shadow-sm',
+  iconBtn: 'inline-flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition-all duration-200 opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100'
 };
+
+const appContainer = ref<HTMLElement | null>(null);
 
 const catalogData = ref<CourseModel | null>(null);
 const viewState = ref<Record<string, CourseViewModel>>({});
@@ -381,12 +341,13 @@ const controller = ref<CourseSelectionController | null>(null);
 const viewingCourseId = ref<string | null>(null);
 const isDarkMode = ref<boolean>(false);
 const searchQuery = ref<string>('');
-const collapsedDepts = ref<Set<string>>(new Set());
+const selectedDept = ref<string | null>(null);
+const hoveredCourseId = ref<string | null>(null);
+
 const tooltip = ref<TooltipState>({ visible: false, text: '', theme: 'default' });
 const deptArrowPaths = ref<Record<string, ArrowPath[]>>({});
 
-// 🌟 NEW: Export Modal State 🌟
-const showExportModal = ref(false);
+const showExportDropdown = ref(false);
 const isExporting = ref(false);
 const exportRef = ref<HTMLElement | null>(null);
 
@@ -394,23 +355,106 @@ const mouseX = ref(0);
 const mouseY = ref(0);
 const moveUpState = ref<{ active: boolean; sourceId: string | null; validTargets: string[]; }>({ active: false, sourceId: null, validTargets: [] });
 
-const matrixRef = ref<HTMLElement | null>(null);
+// Resizable panels calculation based on precise DOM Rects
+const leftPanelWidth = ref(240);
+const rightPanelWidth = ref(240);
+const isResizingLeft = ref(false);
+const isResizingRight = ref(false);
+
+const startLeftResize = (event: MouseEvent) => { 
+  isResizingLeft.value = true; 
+  window.addEventListener('mousemove', doLeftResize); 
+  window.addEventListener('mouseup', stopLeftResize); 
+  event.preventDefault(); 
+};
+const doLeftResize = (event: MouseEvent) => { 
+  if (!isResizingLeft.value || !appContainer.value) return; 
+  const rect = appContainer.value.getBoundingClientRect();
+  leftPanelWidth.value = Math.max(180, Math.min(event.clientX - rect.left, 400)); 
+};
+const stopLeftResize = () => { 
+  isResizingLeft.value = false; 
+  window.removeEventListener('mousemove', doLeftResize); 
+  window.removeEventListener('mouseup', stopLeftResize); 
+};
+
+const startRightResize = (event: MouseEvent) => { 
+  isResizingRight.value = true; 
+  window.addEventListener('mousemove', doRightResize); 
+  window.addEventListener('mouseup', stopRightResize); 
+  event.preventDefault(); 
+};
+const doRightResize = (event: MouseEvent) => { 
+  if (!isResizingRight.value || !appContainer.value) return; 
+  const rect = appContainer.value.getBoundingClientRect();
+  rightPanelWidth.value = Math.max(180, Math.min(rect.right - event.clientX, 400)); 
+};
+const stopRightResize = () => { 
+  isResizingRight.value = false; 
+  window.removeEventListener('mousemove', doRightResize); 
+  window.removeEventListener('mouseup', stopRightResize); 
+};
+
+// Sync Scrolling Refs
+const leftScrollRef = ref<HTMLElement | null>(null);
+const rightScrollRef = ref<HTMLElement | null>(null);
+let isSyncingLeft = false;
+let isSyncingRight = false;
+
 const deptRowRefs = new Map<string, HTMLElement>();
 const courseCardRefs = new Map<string, HTMLElement>();
 const collapsedSummaryRefs = new Map<string, HTMLElement>();
 
 let arrowFrame = 0;
 let resizeObserver: ResizeObserver | null = null;
+const isAnimatingLayout = ref(false);
+let animationTimeout: any = null;
+
+// Suspend graphic operations during layout shifts for perfectly smooth 60fps interaction
+watch(viewingCourseId, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    isAnimatingLayout.value = true;
+    if (animationTimeout) clearTimeout(animationTimeout);
+    animationTimeout = setTimeout(() => {
+      isAnimatingLayout.value = false;
+      scheduleArrowRefresh();
+    }, 500);
+  }
+});
 
 const handleEscape = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
-    if (showExportModal.value) showExportModal.value = false;
+    if (showExportDropdown.value) showExportDropdown.value = false;
     else if (moveUpState.value.active) cancelMoveUpMode();
     else if (viewingCourseId.value) viewingCourseId.value = null;
   }
 };
 
+const closeDropdown = (e: Event) => {
+  if (!(e.target as Element).closest('.export-menu-container')) {
+    showExportDropdown.value = false;
+  }
+};
+
 const updateMousePosition = (e: MouseEvent) => { mouseX.value = e.clientX; mouseY.value = e.clientY; };
+
+// Scrolling sync logic
+const onLeftScroll = (e: Event) => { if (isSyncingLeft) { isSyncingLeft = false; return; } if (rightScrollRef.value) { isSyncingRight = true; rightScrollRef.value.scrollTop = (e.target as HTMLElement).scrollTop; } };
+const onRightScroll = (e: Event) => { if (isSyncingRight) { isSyncingRight = false; return; } if (leftScrollRef.value) { isSyncingLeft = true; leftScrollRef.value.scrollTop = (e.target as HTMLElement).scrollTop; } };
+
+const setupScrollSync = (enable: boolean) => {
+  const leftEl = leftScrollRef.value;
+  const rightEl = rightScrollRef.value;
+  if (!leftEl || !rightEl) return;
+  leftEl.removeEventListener('scroll', onLeftScroll);
+  rightEl.removeEventListener('scroll', onRightScroll);
+  if (enable) {
+    leftEl.addEventListener('scroll', onLeftScroll);
+    rightEl.addEventListener('scroll', onRightScroll);
+  }
+};
+
+watch(selectedDept, (dept) => setupScrollSync(dept === null), { flush: 'post' });
 
 const grades = computed<string[]>(() => catalogData.value?.grades || []);
 
@@ -422,7 +466,7 @@ const allCourses = computed<CourseMeta[]>(() => {
     for (const [gradeLevel, courseArray] of Object.entries(typedGradesObj)) {
       if (!courseArray) continue;
       for (const course of courseArray) {
-        list.push({ id: course.id, dept, grade: gradeLevel, raw: course, searchText: `${course.id} ${course.name || ''} ${course.track || ''}`.toLowerCase() });
+        list.push({ id: course.id, dept, grade: gradeLevel, raw: course, searchText: `${course.id} ${course.name || ''} ${course.track || ''} ${dept}`.toLowerCase() });
       }
     }
   }
@@ -442,110 +486,129 @@ const allCoursesByBucket = computed(() => {
   return buckets;
 });
 
-const visibleCoursesByBucket = computed(() => {
+const activeDepartments = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
-  const buckets = new Map<string, CourseMeta[]>();
+  const matchedDepts = new Set<string>();
   allCourses.value.forEach(course => {
-    if (query && !course.searchText.includes(query)) return;
-    const key = `${course.dept}::${course.grade}`;
-    const bucket = buckets.get(key) ?? [];
-    bucket.push(course);
-    buckets.set(key, bucket);
+    if (!query || course.searchText.includes(query)) {
+      matchedDepts.add(course.dept);
+    }
   });
-  return buckets;
+  return Array.from(matchedDepts);
 });
 
-const activeDepartments = computed(() => Array.from(new Set([...visibleCoursesByBucket.value.values()].flatMap(courses => courses.map(course => course.dept)))));
+watch(searchQuery, () => {
+  if (selectedDept.value && !activeDepartments.value.includes(selectedDept.value)) {
+    selectedDept.value = null;
+  }
+});
+
+const visibleDepts = computed(() => selectedDept.value ? [selectedDept.value] : activeDepartments.value);
+
+const collapsedDepts = computed(() => {
+  if (selectedDept.value === null) {
+    return new Set(activeDepartments.value);
+  } else {
+    const s = new Set(activeDepartments.value);
+    s.delete(selectedDept.value);
+    return s;
+  }
+});
+
 const activeVm = computed(() => viewingCourseId.value ? viewState.value[viewingCourseId.value] : null);
 const activeRaw = computed(() => viewingCourseId.value ? courseMetaById.value.get(viewingCourseId.value) || null : null);
 
-// 🌟 NEW: Gather only selected courses for the PDF Export Flow Diagram 🌟
 const selectedPlan = computed(() => {
   const plan: Record<string, Record<string, CourseMeta[]>> = {};
   for (const course of allCourses.value) {
-    const vm = viewState.value[course.id] as any; // Cast as 'any' to bypass Will's strict types temporarily
-    
-    // Check if the course is selected using Will's new boolean flag
+    const vm = viewState.value[course.id] as any;
     if (vm && vm.isSelected) {
-      // 1. Ensure the Department exists
-      if (!plan[course.dept]) {
-        plan[course.dept] = {};
-      }
-      
-      // 2. Ensure the Grade exists inside the Department
+      if (!plan[course.dept]) plan[course.dept] = {};
       const deptMap = plan[course.dept];
-      if (deptMap && !deptMap[course.grade]) {
-        deptMap[course.grade] = [];
-      }
-      
-      // 3. Safely push the course into the array (fixes the 'undefined' error)
+      if (deptMap && !deptMap[course.grade]) deptMap[course.grade] = [];
       deptMap?.[course.grade]?.push(course);
     }
   }
   return plan;
 });
+
+const exportPlan = computed(() => selectedPlan.value);
 const hasSelectedCourses = computed(() => Object.keys(selectedPlan.value).length > 0);
-// 🌟 NEW: Download PDF Function (Forces Fit to One Page) 🌟
-const downloadPDF = async () => {
+
+const triggerExport = async (type: 'png' | 'pdf') => {
   if (!exportRef.value) return;
   isExporting.value = true;
-  
+  showExportDropdown.value = false;
+
+  await nextTick();
+  await new Promise(r => setTimeout(r, 150)); 
+
   try {
-    // 1. Take a screenshot of the hidden white modal
     const canvas = await html2canvas(exportRef.value, { 
       scale: 2, 
       useCORS: true,
       backgroundColor: '#ffffff',
-      scrollY: 0,
-      windowHeight: exportRef.value.scrollHeight 
+      windowWidth: 1200
     });
     
-    const imgData = canvas.toDataURL('image/png');
-    
-    // 2. Setup A4 Landscape PDF
-    const pdf = new jsPDF('l', 'mm', 'a4');
-    
-    const pdfPageWidth = pdf.internal.pageSize.getWidth();
-    const pdfPageHeight = pdf.internal.pageSize.getHeight();
-    
-    // 3. Calculate aspect ratios
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
-    const ratio = imgWidth / imgHeight;
-    
-    let finalWidth = pdfPageWidth;
-    let finalHeight = finalWidth / ratio;
-    
-    // 4. THE FIX: If the calculated height is STILL taller than the page,
-    // we must shrink the width further so the height fits perfectly!
-    if (finalHeight > pdfPageHeight) {
-      finalHeight = pdfPageHeight;
-      finalWidth = finalHeight * ratio;
+    if (type === 'png') {
+      canvas.toBlob(blob => {
+        if(!blob) return;
+        const url = URL.createObjectURL(blob);
+        const newTab = window.open(url, '_blank');
+        if (!newTab) {
+          Object.assign(document.createElement('a'), { href: url, download: 'Academic_Plan.png' }).click();
+        }
+      }, 'image/png');
+    } else {
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      
+      const pdfPageWidth = pdf.internal.pageSize.getWidth();
+      const pdfPageHeight = pdf.internal.pageSize.getHeight();
+      
+      const ratio = canvas.width / canvas.height;
+      let finalWidth = pdfPageWidth;
+      let finalHeight = finalWidth / ratio;
+      
+      if (finalHeight > pdfPageHeight) {
+        finalHeight = pdfPageHeight;
+        finalWidth = finalHeight * ratio;
+      }
+      
+      const xOffset = (pdfPageWidth - finalWidth) / 2;
+      const yOffset = (pdfPageHeight - finalHeight) / 2;
+      
+      pdf.addImage(imgData, 'PNG', xOffset, yOffset, finalWidth, finalHeight);
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      const newTab = window.open(url, '_blank');
+      if (!newTab) {
+        Object.assign(document.createElement('a'), { href: url, download: 'Academic_Plan.pdf' }).click();
+      }
     }
-    
-    // 5. Center the image horizontally if it was shrunk to fit height
-    const xOffset = (pdfPageWidth - finalWidth) / 2;
-    
-    // 6. Print to exactly one page
-    pdf.addImage(imgData, 'PNG', xOffset, 0, finalWidth, finalHeight);
-    pdf.save('SHSID_Course_Plan.pdf');
-    
-    // Auto-close modal on success
-    showExportModal.value = false;
   } catch (error) {
-    console.error('Failed to generate PDF:', error);
-    alert("Failed to export PDF. Please try again.");
+    console.error('Failed to generate file:', error);
+    alert("Failed to export. Please try again.");
   } finally {
     isExporting.value = false;
   }
 };
 
+const getCourses = (dept: string, grade: string) => {
+  const allInBucket = allCoursesByBucket.value.get(`${dept}::${grade}`) || [];
+  const query = searchQuery.value.trim().toLowerCase();
+  return allInBucket.filter(c => !query || c.searchText.includes(query));
+};
 
-const getCourses = (dept: string, grade: string) => visibleCoursesByBucket.value.get(`${dept}::${grade}`) || [];
 const getAllBucketCourses = (dept: string, grade: string) => allCoursesByBucket.value.get(`${dept}::${grade}`) || [];
 
 const toggleDarkMode = () => { isDarkMode.value = !isDarkMode.value; document.documentElement.classList.toggle('dark', isDarkMode.value); };
-const toggleDept = (dept: string) => { const next = new Set(collapsedDepts.value); if (next.has(dept)) next.delete(dept); else next.add(dept); collapsedDepts.value = next; };
+
+const toggleDept = (dept: string) => { 
+  selectedDept.value = selectedDept.value === dept ? null : dept; 
+};
+
 const openCourseInfo = (courseId: string) => viewingCourseId.value = courseId;
 
 const startMoveUp = (courseId: string) => { if (!controller.value) return; const targets = controller.value.getValidMoveUpTargets(courseId); if (targets.length > 0) { moveUpState.value = { active: true, sourceId: courseId, validTargets: targets }; } };
@@ -564,6 +627,12 @@ const handleCourseClick = (courseId: string) => {
   controller.value?.handleTap(courseId);
 };
 
+const handleContentAreaClick = (e: MouseEvent) => {
+  if (!viewingCourseId.value) return;
+  if ((e.target as HTMLElement).closest('button')) return;
+  viewingCourseId.value = null;
+};
+
 const getCourseName = (courseId?: string): string => { if (!courseId) return 'Unknown'; return viewState.value[courseId]?.name || courseMetaById.value.get(courseId)?.raw.name || courseId; };
 
 const activeTooltip = computed<TooltipState>(() => {
@@ -577,7 +646,7 @@ const activeTooltip = computed<TooltipState>(() => {
 const showTooltip = (text: string) => { if (!text) return; tooltip.value = { visible: true, text }; };
 const hideTooltip = () => { tooltip.value.visible = false; };
 const tooltipStyle = computed(() => {
-  const gap = 15; const tooltipElWidth = activeTooltip.value.theme === 'move-up' ? 350 : 280; const tooltipElHeight = 96; const margin = 16;
+  const gap = 8; const tooltipElWidth = activeTooltip.value.theme === 'move-up' ? 350 : 280; const tooltipElHeight = 96; const margin = 16;
   const x = mouseX.value; const y = mouseY.value;
   const placeLeft = x + gap + tooltipElWidth > window.innerWidth - margin;
   const placeAbove = y + gap + tooltipElHeight > window.innerHeight - margin;
@@ -586,38 +655,48 @@ const tooltipStyle = computed(() => {
   return { left: `${left}px`, top: `${top}px` };
 });
 
+const isHoveringValidMoveUpTarget = computed(() => {
+  if (!moveUpState.value.active || !hoveredCourseId.value) return false;
+  return moveUpState.value.validTargets.includes(hoveredCourseId.value);
+});
+
 const tooltipThemeClass = computed(() => {
-  if (activeTooltip.value.theme === 'move-up') return 'bg-orange-500/90 backdrop-blur-md text-white font-bold rounded-full shadow-xl border border-white/20 dark:border-black/20 px-3.5 py-2';
-  const baseClasses = 'font-medium shadow-xl max-w-[280px] rounded-xl px-3 py-2';
-  return isDarkMode.value ? `${baseClasses} bg-[#2C2C2E]/90 text-white border border-white/10 shadow-2xl` : `${baseClasses} bg-white text-slate-900 border border-black/10 shadow-xl`;
+  const baseClasses = 'font-normal shadow-xl max-w-[280px] rounded-md px-2 py-1 text-[11px]';
+  if (activeTooltip.value.theme === 'move-up') {
+    if(isHoveringValidMoveUpTarget.value) {
+      return `${baseClasses} bg-[#FF9500] text-white border border-[#FF9500] dark:bg-[#FF9F0A]`;
+    } else {
+      return `${baseClasses} bg-white text-[#FF9500] border border-[#FF9500] dark:bg-[#1c1c1e] dark:text-[#FF9F0A] dark:border-[#FF9F0A]`;
+    }
+  }
+  return isDarkMode.value ? `${baseClasses} bg-[#2C2C2E]/95 text-white border border-white/10 shadow-2xl` : `${baseClasses} bg-white/95 text-gray-900 border border-black/10 shadow-xl`;
 });
 
 const formatRating = (val: number | undefined) => { if (val === undefined) return '0.00'; return val.toFixed(2); };
 
 const getCardStyles = (courseId: string): string => {
-  const isViewing = viewingCourseId.value === courseId;
-  const baseRing = isViewing ? 'ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-[#1C1C1E] ' : '';
+  const baseStyle = '';
   if (moveUpState.value.active) {
-    if (courseId === moveUpState.value.sourceId) return baseRing + 'bg-red-50/80 border-2 border-red-500 text-red-700 dark:bg-red-500/20 dark:text-red-300 transition-all cursor-pointer';
-    if (moveUpState.value.validTargets.includes(courseId)) return baseRing + 'bg-orange-50 border-2 border-dashed border-orange-500 text-orange-700 dark:bg-orange-500/20 dark:text-orange-400 cursor-pointer animate-[pulse_2s_ease-in-out_infinite] hover:scale-[1.02] hover:bg-orange-100 dark:hover:bg-orange-500/30 transition-all';
-    return baseRing + 'bg-transparent border-black/5 dark:border-white/5 opacity-30 grayscale cursor-not-allowed pointer-events-none';
+    if (courseId === moveUpState.value.sourceId) return baseStyle + 'bg-[#FF3B30]/10 border border-[#FF3B30] text-[#FF3B30] dark:bg-[#FF453A]/20 dark:text-[#FF453A] cursor-pointer';
+    if (moveUpState.value.validTargets.includes(courseId)) return baseStyle + 'bg-[#FF9500]/10 border border-dashed border-[#FF9500] text-[#FF9500] dark:bg-[#FF9F0A]/20 dark:text-[#FF9F0A] cursor-pointer animate-[pulse_2s_ease-in-out_infinite] hover:scale-[1.02] hover:bg-[#FF9500]/20';
+    return baseStyle + 'bg-transparent border-black/5 dark:border-white/5 opacity-30 grayscale cursor-not-allowed pointer-events-none';
   }
   const vm = viewState.value[courseId];
-  if (!vm || vm.status === 'locked') return baseRing + 'bg-transparent border border-black/10 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-60';
-  if (vm.isMoveUpSource) return baseRing + 'bg-transparent border-2 border-solid border-orange-400 text-gray-600 dark:text-gray-300 font-medium opacity-85 active:scale-[0.985]';
-  if (vm.isMoveUpTarget) return baseRing + 'bg-orange-500 border-orange-500 text-white shadow-md font-semibold dark:bg-orange-600 active:scale-[0.985]';
-  if (vm.status === 'selected') return baseRing + 'bg-blue-500 border-blue-500 text-white shadow-sm hover:bg-blue-600 active:scale-[0.985]';
-  if (vm.status === 'available') return baseRing + 'bg-white/75 dark:bg-[#2C2C2E]/75 border-black/5 dark:border-white/10 text-black dark:text-white hover:bg-white dark:hover:bg-[#3A3A3C] shadow-sm active:scale-[0.985]';
-  return baseRing + 'bg-transparent border border-black/10 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-60';
+  if (!vm || vm.status === 'locked') return baseStyle + 'bg-transparent border border-black/10 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-60';
+  if (vm.isMoveUpSource) return baseStyle + 'bg-transparent border-2 border-solid border-[#FF9500] text-gray-600 dark:text-gray-300 font-medium opacity-85 hover:opacity-70 active:scale-[0.985]';
+  if (vm.isMoveUpTarget) return baseStyle + 'bg-[#FF9500] border-[#FF9500] text-white shadow-sm font-medium dark:bg-[#FF9F0A] hover:brightness-95 active:scale-[0.985]';
+  if (vm.status === 'selected') return baseStyle + 'bg-[#007AFF] border-[#007AFF] text-white shadow-sm hover:bg-[#006ae6] active:scale-[0.985]';
+  if (vm.status === 'available') return baseStyle + 'bg-white border-black/10 dark:bg-[#2C2C2E] dark:border-white/10 text-black dark:text-white hover:bg-gray-50 dark:hover:bg-[#3A3A3C] shadow-sm active:scale-[0.985]';
+  return baseStyle + 'bg-transparent border border-black/10 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-60';
 };
 
 const getSummaryStyles = (courseId: string): string => {
   const vm = viewState.value[courseId];
-  if (!vm || vm.status === 'locked') return 'bg-transparent border border-black/10 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-60';
-  if (vm.isMoveUpSource) return 'bg-transparent border-2 border-solid border-orange-400 text-gray-600 dark:text-gray-300 font-medium opacity-85';
-  if (vm.isMoveUpTarget) return 'bg-orange-500 border-orange-500 text-white shadow-sm font-semibold dark:bg-orange-600';
-  if (vm.status === 'selected') return 'bg-blue-500 border-blue-500 text-white';
-  return 'bg-white/80 dark:bg-[#2C2C2E]/75 border-black/5 text-black dark:text-white';
+  if (!vm || vm.status === 'locked') return 'bg-transparent border-black/10 dark:border-white/10 text-gray-400 dark:text-gray-500 opacity-60';
+  if (vm.isMoveUpSource) return 'bg-transparent border border-solid border-[#FF9500] text-gray-600 dark:text-gray-300 opacity-85';
+  if (vm.isMoveUpTarget) return 'bg-[#FF9500] border-[#FF9500] text-white';
+  if (vm.status === 'selected') return 'bg-[#007AFF] border-[#007AFF] text-white';
+  return 'bg-white dark:bg-[#2C2C2E] border-black/10 dark:border-white/10 text-gray-800 dark:text-gray-200';
 };
 
 const getGradeEntryPoint = (dept: string, grade: string): string | null => { const bucket = getAllBucketCourses(dept, grade); const activeCourses = bucket.filter(c => { const st = viewState.value[c.id]?.status; return st === 'selected' || st === 'moveUpTarget'; }); if (!activeCourses.length) return null; const entry = activeCourses.find(c => { const sourceId = viewState.value[c.id]?.moveUpSourceId; if (!sourceId) return true; return courseMetaById.value.get(sourceId)?.grade !== grade; }); return entry ? entry.id : activeCourses[0]!.id; };
@@ -634,7 +713,7 @@ const makeMoveUpPath = (rowEl: HTMLElement, startEl: HTMLElement, endEl: HTMLEle
 
 const recomputeArrowPaths = () => {
   const nextPaths: Record<string, ArrowPath[]> = {}; const currentGrades = grades.value;
-  activeDepartments.value.forEach(dept => {
+  visibleDepts.value.forEach(dept => {
     const rowEl = deptRowRefs.get(dept); if (!rowEl) return; const paths: ArrowPath[] = [];
     if (!collapsedDepts.value.has(dept)) {
       const explicitSources = Object.values(viewState.value).filter(v => v.isMoveUpSource && courseMetaById.value.get(v.id)?.dept === dept);
@@ -657,40 +736,58 @@ const recomputeArrowPaths = () => {
   });
   deptArrowPaths.value = nextPaths;
 };
-const scheduleArrowRefresh = () => { cancelAnimationFrame(arrowFrame); arrowFrame = window.requestAnimationFrame(() => nextTick(recomputeArrowPaths)); };
+const scheduleArrowRefresh = () => { 
+  if (isAnimatingLayout.value) return; // Prevent heavy recalculations during layout transition
+  cancelAnimationFrame(arrowFrame); 
+  arrowFrame = window.requestAnimationFrame(() => nextTick(recomputeArrowPaths)); 
+};
 
 watch(viewState, scheduleArrowRefresh, { deep: true, immediate: true });
-watch([visibleCoursesByBucket, collapsedDepts, grades], scheduleArrowRefresh, { deep: true });
+watch([visibleDepts, collapsedDepts, grades], scheduleArrowRefresh, { deep: true });
 
 onMounted(async () => {
   inject();
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   isDarkMode.value = prefersDark; document.documentElement.classList.toggle('dark', prefersDark);
-  window.addEventListener('keydown', handleEscape); window.addEventListener('resize', scheduleArrowRefresh);
+  window.addEventListener('keydown', handleEscape); 
+  window.addEventListener('click', closeDropdown);
+  window.addEventListener('resize', scheduleArrowRefresh);
   if (typeof ResizeObserver !== 'undefined') resizeObserver = new ResizeObserver(scheduleArrowRefresh);
   try {
     const data = await (new Updater()).initialize();
     if (data) {
       catalogData.value = data; controller.value = new CourseSelectionController(data); controller.value.connectView(v => viewState.value = v);
-      collapsedDepts.value = new Set(Object.keys(data.departments));
       await nextTick();
-      if (matrixRef.value && resizeObserver) resizeObserver.observe(matrixRef.value);
+      setupScrollSync(selectedDept.value === null);
       scheduleArrowRefresh();
     }
   } catch (e) { console.error(e); }
 });
-onBeforeUnmount(() => { cancelAnimationFrame(arrowFrame); resizeObserver?.disconnect(); window.removeEventListener('keydown', handleEscape); window.removeEventListener('resize', scheduleArrowRefresh); });
+onBeforeUnmount(() => { 
+  cancelAnimationFrame(arrowFrame); 
+  if (animationTimeout) clearTimeout(animationTimeout);
+  resizeObserver?.disconnect(); 
+  window.removeEventListener('keydown', handleEscape); 
+  window.removeEventListener('click', closeDropdown);
+  window.removeEventListener('resize', scheduleArrowRefresh); 
+});
 </script>
 
 <style scoped>
-.slide-sheet-enter-active, .slide-sheet-leave-active { transition: all 0.6s cubic-bezier(0.32, 0.72, 0, 1); }
-.slide-sheet-enter-from, .slide-sheet-leave-to { transform: translateX(110%); opacity: 0; }
-.fade-enter-active, .fade-leave-active { transition: opacity 0.4s ease; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
-.tooltip-pop-enter-active, .tooltip-pop-leave-active { transition: all 0.2s ease; }
-.tooltip-pop-enter-from, .tooltip-pop-leave-to { opacity: 0; transform: scale(0.9); }
-.animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.32, 0.72, 0, 1) forwards; }
-@keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-.custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(142, 142, 147, 0.3); border-radius: 10px; }
+.tooltip-pop-enter-active, .tooltip-pop-leave-active { transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1); }
+.tooltip-pop-enter-from, .tooltip-pop-leave-to { opacity: 0; transform: scale(0.95); }
+.animate-fade-in-up { animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Dynamic Layout Logic */
+.no-transition { transition: none !important; }
+
+/* Elegant hidden scrollbar wrapper class */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 </style>
