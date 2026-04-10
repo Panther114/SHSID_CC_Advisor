@@ -595,7 +595,7 @@ const getGradeEntryPoint = (dept: string, grade: string): string | null => {
     if (!sourceId) return true;
     return courseMetaById.value.get(sourceId)?.grade !== grade;
   });
-  return entry ? entry.id : activeCourses[0].id;
+  return entry ? entry.id : activeCourses[0]!.id;
 };
 
 const getGradeExitPoint = (dept: string, grade: string): string | null => {
@@ -612,7 +612,7 @@ const getGradeExitPoint = (dept: string, grade: string): string | null => {
     if (!targetId) return true;
     return courseMetaById.value.get(targetId)?.grade !== grade;
   });
-  return exit ? exit.id : activeCourses[activeCourses.length - 1].id;
+  return exit ? exit.id : activeCourses[activeCourses.length - 1]!.id;
 };
 
 const getCollapsedSummary = (dept: string, grade: string) => {
