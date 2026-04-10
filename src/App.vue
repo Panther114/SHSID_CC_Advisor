@@ -291,6 +291,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { inject } from '@vercel/analytics';
 
 import { CourseSelectionController } from './backend/Controller';
 import { Updater } from './backend/Updater';
@@ -582,6 +583,9 @@ watch(viewState, scheduleArrowRefresh, { deep: true, immediate: true });
 watch([visibleCoursesByBucket, collapsedDepts, grades], scheduleArrowRefresh, { deep: true });
 
 onMounted(async () => {
+  // Initialize Vercel Analytics
+  inject();
+
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   isDarkMode.value = prefersDark;
   document.documentElement.classList.toggle('dark', prefersDark);
