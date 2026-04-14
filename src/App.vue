@@ -286,7 +286,7 @@ import { Updater } from './backend/Updater';
 import type { CourseModel, CourseNode } from './backend/CourseModel';
 import type { CourseViewModel } from './backend/ViewModel';
 
-const APP_VERSION = "v0.3, revision 22";
+const APP_VERSION = "v0.3, revision 23";
 const DISCLAIMER = "This is an unofficial tool and isn't affiliated with SHSID. All content derived from the Course Catalog and is for internal reference purposes only. Course availability and policies are subject to change by the school administration. Please schedule a meeting with your homeroom teacher for accurate results!";
 
 interface CourseMeta { id: string; dept: string; grade: string; raw: CourseNode; searchText: string; }
@@ -298,7 +298,7 @@ const uiConfig = {
   iconBtn: 'inline-flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition-colors duration-0'
 };
 
-const appContainer = null || ref<HTMLElement | null>(null);
+const appContainer = ref<HTMLElement | null>(null);
 const catalogData = ref<CourseModel | null>(null);
 const viewState = ref<Record<string, CourseViewModel>>({});
 const controller = ref<CourseSelectionController | null>(null);
@@ -389,13 +389,24 @@ const exportPlan = computed(() => {
   for (const course of allCourses.value) {
     const vm = viewState.value[course.id];
     if (vm && vm.isSelected) {
-      if (!plan[course.dept]) plan[course.dept] = {};
-      if (!plan[course.dept][course.grade]) plan[course.dept][course.grade] = [];
-      plan[course.dept][course.grade].push(course);
+      let deptPlan = plan[course.dept];
+      if (!deptPlan) {
+        deptPlan = {};
+        plan[course.dept] = deptPlan;
+      }
+      
+      let gradePlan = deptPlan[course.grade];
+      if (!gradePlan) {
+        gradePlan = [];
+        deptPlan[course.grade] = gradePlan;
+      }
+      
+      gradePlan.push(course);
     }
   }
   return plan;
 });
+
 const hasSelectedCourses = computed(() => Object.keys(exportPlan.value).length > 0);
 
 const triggerExport = async (type: 'png' | 'pdf') => {
