@@ -1,10 +1,10 @@
 <template>
   <div
-    class="min-h-screen bg-[#F2F2F7] dark:bg-[#000000] text-[#1C1C1E] dark:text-[#F2F2F7] p-2 sm:p-4 md:p-6 font-sans relative overflow-x-auto overflow-y-clip md:overflow-clip flex flex-col antialiased selection:bg-[#007AFF]/30 select-none"
+    class="min-h-screen bg-[#F2F2F7] dark:bg-[#000000] text-[#1C1C1E] dark:text-[#F2F2F7] p-2 sm:p-4 md:p-6 font-sans relative overflow-x-hidden overflow-y-clip md:overflow-clip flex flex-col antialiased selection:bg-[#007AFF]/30 select-none"
     @mousemove="updateMousePosition"
   >
     <!-- Header -->
-    <header class="flex justify-between items-center gap-2 mb-4 relative z-50 shrink-0 max-w-[1400px] min-w-[920px] mx-auto w-full px-2">
+    <header class="flex justify-between items-center gap-2 mb-4 relative z-50 shrink-0 max-w-[1400px] mx-auto w-full px-2">
       <div class="flex items-center min-w-0">
         <img src="/cc-icon.png" class="w-10 h-10 md:w-14 md:h-14 object-contain mr-3 md:mr-4 pointer-events-none" alt="CC Logo" draggable="false" />
         <div class="flex flex-col justify-center">
@@ -47,7 +47,7 @@
     </header>
 
     <!-- Main Container -->
-    <div v-if="catalogData" ref="appContainer" class="flex-1 min-h-0 max-w-[1400px] min-w-[920px] mx-auto w-full bg-[#FFFFFF] dark:bg-[#1C1C1E] rounded-[16px] sm:rounded-[20px] overflow-clip shadow-2xl border border-black/10 dark:border-white/10 relative z-10 flex animate-fade-in-up">
+    <div v-if="catalogData" ref="appContainer" class="flex-1 min-h-0 max-w-[1400px] mx-auto w-full bg-[#FFFFFF] dark:bg-[#1C1C1E] rounded-[16px] sm:rounded-[20px] overflow-clip shadow-2xl border border-black/10 dark:border-white/10 relative z-10 flex animate-fade-in-up">
       
       <!-- Left Sidebar -->
       <div
