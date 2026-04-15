@@ -1,5 +1,7 @@
 // Solver.ts
-// rewritten to explicitly model targeted move-ups with hybrid dependency injection
+// written by willuhd on Apr 6
+// - rewritten to explicitly model targeted move-ups with hybrid dependency injection
+// - uses a dependency flow graph and some random DP concepts
 
 import type { CourseModel, CourseNode } from "./CourseModel";
 
@@ -26,7 +28,7 @@ interface ResolutionContext {
     resolved: Set<string>;
 }
 
-interface ResolutionFailure {
+export interface ResolutionFailure {
     type: "group_conflict" | "missing_reference" | "cycle" | "dead_end" | "track_lock";
     sourceCourseId: string;
     requirement?: RequirementNode;
@@ -171,6 +173,16 @@ export class CatalogSolver {
         return state;
     }
 
+    public simulatePlanValidity(selected: Set<string>, moveUps: Map<string, string>, focusTargetId?: string): { ok: boolean, reason?: string, failure?: ResolutionFailure } {
+        const plan = this.buildEffectivePlan(selected, moveUps);
+        const resolution = this.resolvePlan(plan);
+        return {
+            ok: resolution.ok,
+            reason: resolution.ok ? undefined : this.describeFailure(resolution.failure, focusTargetId || "course"),
+            failure: resolution.failure
+        };
+    }
+
     private evaluateCourseAvailability(courseId: string): CourseAvailabilityState {
         const cacheKey = this.makeCacheKey(courseId);
         const cached = this.evaluationCache.get(cacheKey);
@@ -205,7 +217,6 @@ export class CatalogSolver {
 
         const courseGroup = this.getConflictGroupId(courseId);
 
-        // If simulating this course, dynamically wipe selections overlapping its target space
         if (courseGroup) {
             for (const s of [...selected]) {
                 if (s === courseId) continue;
@@ -230,12 +241,11 @@ export class CatalogSolver {
         for (const s of selected) {
             const t = moveUps.get(s);
             if (t) {
-                // Course replaced via Move-Up 
                 explicitTargets.add(t);
                 sourceByTarget.set(t, s);
                 const sNode = this.courseMap.get(s);
                 if (sNode) {
-                    reqOverrides.set(t, sNode.requirements); // For pre-requisites mapping
+                    reqOverrides.set(t, sNode.requirements);
                 }
             } else {
                 explicitTargets.add(s);
@@ -254,7 +264,6 @@ export class CatalogSolver {
 
         const sortedTargets = [...plan.explicitTargets].sort();
 
-        // 1. Group conflict detection on pure occupancy
         for (const target of sortedTargets) {
             const course = this.courseMap.get(target);
             if (!course) {
@@ -270,7 +279,6 @@ export class CatalogSolver {
             }
         }
 
-        // 2. DFS for recursive prerequisite validation
         for (const target of sortedTargets) {
             const result = this.resolveCourse(target, context, [], plan);
             if (!result.ok) {
@@ -279,7 +287,6 @@ export class CatalogSolver {
             context = result.context;
         }
 
-        // 3. Upward track continuity check
         const continuationFailure = this.findContinuationConflict(context.closure, plan);
         if (continuationFailure) {
             return { ok: false, closure: context.closure, failure: continuationFailure };
@@ -313,7 +320,6 @@ export class CatalogSolver {
             workingContext.occupancy.set(course.conflictGroupId, courseId);
         }
 
-        // Swap checking logic for move-up targets 
         const reqs = plan.reqOverrides.get(courseId) ?? course.requirements;
         const nextPath = [...path, courseId];
 
@@ -372,7 +378,6 @@ export class CatalogSolver {
                 if (targetCourseId === sourceCourseId) continue;
                 if (!closure.has(targetCourseId)) continue;
 
-                // When previous courses check valid continuing paths, a targeted move-up counts as its base root S
                 const originalIdentity = plan.sourceByTarget.get(targetCourseId) || targetCourseId;
 
                 if (allowedTargets.has(targetCourseId) || allowedTargets.has(originalIdentity)) {

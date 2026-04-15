@@ -1,5 +1,5 @@
 // CourseModel.ts
-// written by willuhd on Apr 6, 2026
+// written by willuhd on Apr 6
 // - The core model used for the Common Course catalog file. 
 // - The internal state used by the backend
 // - Not intended to use by the frontend! Please use ViewModel
@@ -20,7 +20,7 @@ export interface CourseNode {
     crowdReview: string;
     level?: string;
     rules?: CourseRules;
-    moveUp?: string; // e.g. "Midterm score 95%+ or SAT 1500+ to jump tracks"
+    moveUp?: string; 
     moveUpTargetId?: string;
     [key: string]: any;
 }
@@ -33,6 +33,8 @@ export interface CourseModel {
     catalogName: string;
     version: string;
     lastUpdated: string;
+    credit: string;
+    footnote: string;
     grades: string[];
     tracks: string[];
     departments: {
